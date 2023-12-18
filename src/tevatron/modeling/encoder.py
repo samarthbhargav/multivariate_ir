@@ -234,3 +234,7 @@ class EncoderModel(nn.Module):
             self.lm_q.save_pretrained(output_dir)
         if self.pooler:
             self.pooler.save_pooler(output_dir)
+
+    def resize_token_space(self, num_tokens):
+        self.lm_q.resize_token_embeddings(num_tokens)
+        self.lm_p.resize_token_embeddings(num_tokens)
