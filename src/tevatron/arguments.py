@@ -34,7 +34,7 @@ class ModelArguments:
         default="float32",
         metadata={
             "help": "Floating-point format in which the model weights should be initialized and trained. Choose one "
-            "of `[float32, float16, bfloat16]`. "
+                    "of `[float32, float16, bfloat16]`. "
         },
     )
 
@@ -61,14 +61,14 @@ class DataArguments:
         default=32,
         metadata={
             "help": "The maximum total input sequence length after tokenization for query. Sequences longer "
-            "than this will be truncated, sequences shorter will be padded."
+                    "than this will be truncated, sequences shorter will be padded."
         },
     )
     p_max_len: int = field(
         default=128,
         metadata={
             "help": "The maximum total input sequence length after tokenization for passage. Sequences longer "
-            "than this will be truncated, sequences shorter will be padded."
+                    "than this will be truncated, sequences shorter will be padded."
         },
     )
     data_cache_dir: Optional[str] = field(
@@ -110,3 +110,11 @@ class TevatronTrainingArguments(TrainingArguments):
     grad_cache: bool = field(default=False, metadata={"help": "Use gradient cache update"})
     gc_q_chunk_size: int = field(default=4)
     gc_p_chunk_size: int = field(default=32)
+
+
+@dataclass
+class MVRLTrainingArguments:
+    model_type: str = field(default="default", metadata={"help": "either default or mvrl"})
+    var_activation: str = field(default="softplus", metadata={"help": "either softplus or logvar"})
+    var_activation_param_b: str = field(default=None,
+                                        metadata={"help": "the param 'beta' for var_activation=softplus"})

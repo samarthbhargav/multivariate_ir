@@ -101,6 +101,7 @@ class EncoderModel(nn.Module):
         else:
             scores = self.compute_similarity(q_reps, p_reps)
             loss = None
+
         return EncoderOutput(
             loss=loss,
             scores=scores,
