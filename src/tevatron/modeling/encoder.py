@@ -54,13 +54,12 @@ class EncoderModel(nn.Module):
     TRANSFORMER_CLS = AutoModel
 
     def __init__(
-        self,
-        lm_q: PreTrainedModel,
-        lm_p: PreTrainedModel,
-        pooler: nn.Module = None,
-        untie_encoder: bool = False,
-        negatives_x_device: bool = False,
-        output_dim: int = 768,
+            self,
+            lm_q: PreTrainedModel,
+            lm_p: PreTrainedModel,
+            pooler: nn.Module = None,
+            untie_encoder: bool = False,
+            negatives_x_device: bool = False
     ):
         super().__init__()
         self.lm_q = lm_q
@@ -74,17 +73,10 @@ class EncoderModel(nn.Module):
                 raise ValueError("Distributed training has not been initialized for representation all gather.")
             self.process_rank = dist.get_rank()
             self.world_size = dist.get_world_size()
-        self.projection_mean = nn.Linear(output_dim, output_dim / 2 - 1, bias=False)
-        self.projection_var = nn.Linear(output_dim, output_dim / 2 - 1, bias=False)
 
     def forward(self, query: Dict[str, Tensor] = None, passage: Dict[str, Tensor] = None):
-        q_reps_mean, q_reps_var = self.encode_query(query)
-        p_reps_mean, p_reps_var = self.encode_passage(passage)
-
-        ##
-        q_reps = q_reps_mean
-        p_reps = p_reps_mean
-        # TODO: Change similarity computation below, to KL-divergence scoring (Eq. 10)
+        q_reps = self.encode_query(query)
+        p_reps = self.encode_passage(passage)
 
         # for inference
         if q_reps is None or p_reps is None:
@@ -151,10 +143,10 @@ class EncoderModel(nn.Module):
 
     @classmethod
     def build(
-        cls,
-        model_args: ModelArguments,
-        train_args: TrainingArguments,
-        **hf_kwargs,
+            cls,
+            model_args: ModelArguments,
+            train_args: TrainingArguments,
+            **hf_kwargs,
     ):
         # load local
         if os.path.isdir(model_args.model_name_or_path):
@@ -192,9 +184,9 @@ class EncoderModel(nn.Module):
 
     @classmethod
     def load(
-        cls,
-        model_name_or_path,
-        **hf_kwargs,
+            cls,
+            model_name_or_path,
+            **hf_kwargs,
     ):
         # load local
         untie_encoder = True
@@ -242,7 +234,3 @@ class EncoderModel(nn.Module):
             self.lm_q.save_pretrained(output_dir)
         if self.pooler:
             self.pooler.save_pooler(output_dir)
-
-    def resize_token_space(self, num_tokens):
-        self.lm_q.resize_token_embeddings(num_tokens)
-        self.lm_p.resize_token_embeddings(num_tokens)

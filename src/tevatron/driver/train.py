@@ -78,14 +78,12 @@ def main():
         model_args.tokenizer_name if model_args.tokenizer_name else model_args.model_name_or_path,
         cache_dir=model_args.cache_dir,
     )
-    tokenizer.add_tokens("[VAR]", special_tokens=True)
     model = DenseModel.build(
         model_args,
         training_args,
         config=config,
         cache_dir=model_args.cache_dir,
     )
-    model.resize_token_space(len(tokenizer))
 
     train_dataset = HFTrainDataset(
         tokenizer=tokenizer, data_args=data_args, cache_dir=data_args.data_cache_dir or model_args.cache_dir

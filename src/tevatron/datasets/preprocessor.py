@@ -5,30 +5,19 @@ class TrainPreProcessor:
         self.text_max_length = text_max_length
         self.separator = separator
 
-    def _preproc(self, example):
-        is_variational = len(self.tokenizer.tokenize("[VAR]")) > 0
-        if "title" in example.keys():
-            text = example["title"] + self.separator + example["text"]
-        else:
-            text = example["text"]
-        if is_variational:
-            text = "[VAR]" + self.separator + text
-        return text
-
-
     def __call__(self, example):
         query = self.tokenizer.encode(
             example["query"], add_special_tokens=False, max_length=self.query_max_length, truncation=True
         )
         positives = []
         for pos in example["positive_passages"]:
-            text = self._preproc(pos)
+            text = pos["title"] + self.separator + pos["text"] if "title" in pos else pos["text"]
             positives.append(
                 self.tokenizer.encode(text, add_special_tokens=False, max_length=self.text_max_length, truncation=True)
             )
         negatives = []
         for neg in example["negative_passages"]:
-            text = self._preproc(neg)
+            text = neg["title"] + self.separator + neg["text"] if "title" in neg else neg["text"]
             negatives.append(
                 self.tokenizer.encode(text, add_special_tokens=False, max_length=self.text_max_length, truncation=True)
             )
@@ -36,22 +25,14 @@ class TrainPreProcessor:
 
 
 class QueryPreProcessor:
-    def __init__(self, tokenizer, query_max_length=32, separator=" "):
+    def __init__(self, tokenizer, query_max_length=32):
         self.tokenizer = tokenizer
         self.query_max_length = query_max_length
-        self.separator = separator
-
-    def _preproc(self, example):
-        is_variational = len(self.tokenizer.tokenize("[VAR]")) > 0
-        if is_variational:
-            return example["query"]
-        return "[VAR]" + self.separator + example["query"]
 
     def __call__(self, example):
         query_id = example["query_id"]
-        text = self._preproc(example)
         query = self.tokenizer.encode(
-            text, add_special_tokens=False, max_length=self.query_max_length, truncation=True
+            example["query"], add_special_tokens=False, max_length=self.query_max_length, truncation=True
         )
         return {"text_id": query_id, "text": query}
 
@@ -62,18 +43,8 @@ class CorpusPreProcessor:
         self.text_max_length = text_max_length
         self.separator = separator
 
-    def _preproc(self, example):
-        is_variational = len(self.tokenizer.tokenize("[VAR]")) > 0
-        if "title" in example.keys():
-            text = example["title"] + self.separator + example["text"]
-        else:
-            text = example["text"]
-        if is_variational:
-            text = "[VAR]" + self.separator + text
-        return text
-
     def __call__(self, example):
         docid = example["docid"]
-        text = self._preproc(example)
-        doc = self.tokenizer.encode(text, add_special_tokens=False, max_length=self.text_max_length, truncation=True)
-        return {"text_id": docid, "text": doc}
+        text = example["title"] + self.separator + example["text"] if "title" in example else example["text"]
+        text = self.tokenizer.encode(text, add_special_tokens=False, max_length=self.text_max_length, truncation=True)
+        return {"text_id": docid, "text": text}
