@@ -42,9 +42,7 @@ class DenseModel(EncoderModel):
             p_reps = self.pooler(p=p_hidden)  # D * d
         else:
             p_reps = p_hidden[:, 0]
-        p_reps_mean = self.projection_mean(p_reps)
-        p_reps_var = self.projection_var(p_hidden[:, 1])
-        return p_reps_mean, p_reps_var
+        return p_reps
 
     def encode_query(self, qry):
         if qry is None:
@@ -55,9 +53,7 @@ class DenseModel(EncoderModel):
             q_reps = self.pooler(q=q_hidden)
         else:
             q_reps = q_hidden[:, 0]
-        q_reps_mean = self.projection_mean(q_reps)
-        q_reps_var = self.projection_var(q_hidden[:, 1])
-        return q_reps_mean, q_reps_var
+        return q_reps
 
     def compute_similarity(self, q_reps, p_reps):
         return torch.matmul(q_reps, p_reps.transpose(0, 1))
