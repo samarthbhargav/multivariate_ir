@@ -42,7 +42,6 @@ safetensors==0.4.1
 six==1.16.0
 soupsieve==2.5
 sympy==1.12
--e git+git@github.com:peustr/multivariate_ir.git@7e7f7ade2ee60ee4f715738d2136d747ebb1d94b#egg=tevatron
 tokenizers==0.15.0
 torch==2.1.0
 torchaudio==2.1.0
