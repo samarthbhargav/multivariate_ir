@@ -57,7 +57,5 @@ class CorpusPreProcessor:
             text = example["title"] + self.separator + example["text"] if "title" in example else example["text"]
         else:
             text = example["text"]
-
-        print(text, example["title"])
         text = self.tokenizer.encode(text, add_special_tokens=False, max_length=self.text_max_length, truncation=True)
         return {"text_id": docid, "text": text}

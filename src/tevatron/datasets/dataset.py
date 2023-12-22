@@ -1,3 +1,5 @@
+import logging
+
 from datasets import load_dataset
 from transformers import PreTrainedTokenizer
 
@@ -15,6 +17,8 @@ PROCESSOR_INFO = {
     "Tevatron/msmarco-passage": DEFAULT_PROCESSORS,
     "json": [None, None, None],
 }
+
+logger = logging.getLogger(__name__)
 
 
 class HFTrainDataset:
@@ -46,6 +50,8 @@ class HFTrainDataset:
             self.include_title = False
         else:
             self.include_title = True
+
+        logger.info(f"include_title:{self.include_title}")
 
     def process(self, shard_num=1, shard_idx=0):
         self.dataset = self.dataset.shard(shard_num, shard_idx)
@@ -116,11 +122,13 @@ class HFCorpusDataset:
         self.p_max_len = data_args.p_max_len
         self.proc_num = data_args.dataset_proc_num
         self.separator = getattr(self.tokenizer, data_args.passage_field_separator, data_args.passage_field_separator)
-        if data_args.dataset_name == "Tevatron/msmarco-passage":
+        if data_args == "Tevatron/msmarco-passage-corpus":
             # do not include the title, to make it comparable with other literature
             self.include_title = False
         else:
             self.include_title = True
+
+        logger.info(f"include_title:{self.include_title}")
 
     def process(self, shard_num=1, shard_idx=0):
         self.dataset = self.dataset.shard(shard_num, shard_idx)
