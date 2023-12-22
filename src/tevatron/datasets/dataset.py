@@ -122,7 +122,7 @@ class HFCorpusDataset:
         self.p_max_len = data_args.p_max_len
         self.proc_num = data_args.dataset_proc_num
         self.separator = getattr(self.tokenizer, data_args.passage_field_separator, data_args.passage_field_separator)
-        if data_args == "Tevatron/msmarco-passage-corpus":
+        if data_args.dataset_name == "Tevatron/msmarco-passage-corpus":
             # do not include the title, to make it comparable with other literature
             self.include_title = False
         else:
