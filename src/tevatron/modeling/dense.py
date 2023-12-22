@@ -2,6 +2,7 @@ import logging
 
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from torch import Tensor
 
 from .encoder import EncoderModel, EncoderPooler
@@ -43,7 +44,7 @@ class DenseModel(EncoderModel):
         else:
             p_reps = p_hidden[:, 0]
         p_reps_mean = self.projection_mean(p_reps)
-        p_reps_var = self.projection_var(p_hidden[:, 1])
+        p_reps_var = F.softplus(self.projection_var(p_hidden[:, 1]), beta=self.beta)
         return p_reps_mean, p_reps_var
 
     def encode_query(self, qry):
@@ -56,7 +57,7 @@ class DenseModel(EncoderModel):
         else:
             q_reps = q_hidden[:, 0]
         q_reps_mean = self.projection_mean(q_reps)
-        q_reps_var = self.projection_var(q_hidden[:, 1])
+        q_reps_var = F.softplus(self.projection_var(q_hidden[:, 1]), beta=self.beta)
         return q_reps_mean, q_reps_var
 
     def compute_similarity(self, q_reps, p_reps):

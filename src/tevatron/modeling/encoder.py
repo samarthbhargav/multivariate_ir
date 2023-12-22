@@ -61,6 +61,7 @@ class EncoderModel(nn.Module):
         untie_encoder: bool = False,
         negatives_x_device: bool = False,
         output_dim: int = 768,
+        softplus_beta: float = 1.0,
     ):
         super().__init__()
         self.lm_q = lm_q
@@ -76,6 +77,7 @@ class EncoderModel(nn.Module):
             self.world_size = dist.get_world_size()
         self.projection_mean = nn.Linear(output_dim, output_dim / 2 - 1, bias=False)
         self.projection_var = nn.Linear(output_dim, output_dim / 2 - 1, bias=False)
+        self.beta = softplus_beta  # keeps the covariance positive
 
     def forward(self, query: Dict[str, Tensor] = None, passage: Dict[str, Tensor] = None):
         q_reps_mean, q_reps_var = self.encode_query(query)
