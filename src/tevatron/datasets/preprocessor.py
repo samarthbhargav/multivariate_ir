@@ -45,8 +45,14 @@ class CorpusPreProcessor:
         self.include_title = include_title
 
     def __call__(self, example):
-        print(f"{example}\n{example.keys()}\n\n")
-        docid = example["docid"]
+
+        try:
+            docid = example["docid"]
+            print("NO PROB\n")
+        except KeyError:
+            print(f"{example}\n{example.keys()}\n\n")
+            raise ValueError()
+
         if self.include_title:
             text = example["title"] + self.separator + example["text"] if "title" in example else example["text"]
         else:
