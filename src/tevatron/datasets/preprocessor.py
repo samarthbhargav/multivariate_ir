@@ -44,6 +44,7 @@ class CorpusPreProcessor:
         self.separator = separator
 
     def __call__(self, example):
+        print(example)
         docid = example["docid"]
         text = example["title"] + self.separator + example["text"] if "title" in example else example["text"]
         text = self.tokenizer.encode(text, add_special_tokens=False, max_length=self.text_max_length, truncation=True)
