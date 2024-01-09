@@ -32,7 +32,7 @@ class TevatronTrainer(Trainer):
         self.model.save(output_dir)
 
     def _prepare_inputs(
-        self, inputs: Tuple[Dict[str, Union[torch.Tensor, Any]], ...]
+            self, inputs: Tuple[Dict[str, Union[torch.Tensor, Any]], ...]
     ) -> List[Dict[str, Union[torch.Tensor, Any]]]:
         prepared = []
         for x in inputs:

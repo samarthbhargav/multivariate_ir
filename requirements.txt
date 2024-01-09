@@ -1,3 +1,4 @@
+accelerate==0.25.0
 aiohttp==3.9.1
 aiosignal==1.3.1
 async-timeout==4.0.3
@@ -28,6 +29,7 @@ numpy==1.24.4
 packaging==23.2
 pandas==2.0.3
 Pillow==10.1.0
+psutil==5.9.7
 pyarrow==14.0.1
 pyarrow-hotfix==0.6
 pyautocorpus==0.1.12
@@ -40,7 +42,6 @@ safetensors==0.4.1
 six==1.16.0
 soupsieve==2.5
 sympy==1.12
--e git+git@github.com:peustr/multivariate_ir.git@afcaadbd421fda6f7e348252b7e8abae0a7ba565#egg=tevatron
 tokenizers==0.15.0
 torch==2.1.0
 torchaudio==2.1.0

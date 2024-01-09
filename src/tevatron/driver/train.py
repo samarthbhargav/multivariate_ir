@@ -5,7 +5,7 @@ import sys
 import torch
 from transformers import AutoConfig, AutoTokenizer, HfArgumentParser, set_seed
 
-from tevatron.arguments import DataArguments, ModelArguments
+from tevatron.arguments import DataArguments, ModelArguments, MVRLTrainingArguments
 from tevatron.arguments import TevatronTrainingArguments as TrainingArguments
 from tevatron.data import QPCollator, TrainDataset
 from tevatron.datasets import HFTrainDataset
@@ -27,21 +27,21 @@ def cleanup():
 
 
 def main():
-    parser = HfArgumentParser((ModelArguments, DataArguments, TrainingArguments))
+    parser = HfArgumentParser((ModelArguments, DataArguments, TrainingArguments, MVRLTrainingArguments))
 
     if len(sys.argv) == 2 and sys.argv[1].endswith(".json"):
-        model_args, data_args, training_args = parser.parse_json_file(json_file=os.path.abspath(sys.argv[1]))
+        model_args, data_args, training_args, mvrl_args = parser.parse_json_file(json_file=os.path.abspath(sys.argv[1]))
     else:
-        model_args, data_args, training_args = parser.parse_args_into_dataclasses()
+        model_args, data_args, training_args, mvrl_args = parser.parse_args_into_dataclasses()
         model_args: ModelArguments
         data_args: DataArguments
         training_args: TrainingArguments
 
     if (
-        os.path.exists(training_args.output_dir)
-        and os.listdir(training_args.output_dir)
-        and training_args.do_train
-        and not training_args.overwrite_output_dir
+            os.path.exists(training_args.output_dir)
+            and os.listdir(training_args.output_dir)
+            and training_args.do_train
+            and not training_args.overwrite_output_dir
     ):
         raise ValueError(
             f"Output directory ({training_args.output_dir}) already exists and is not empty. Use --overwrite_output_dir to overcome."
@@ -74,16 +74,20 @@ def main():
         num_labels=num_labels,
         cache_dir=model_args.cache_dir,
     )
-    tokenizer = AutoTokenizer.from_pretrained(
-        model_args.tokenizer_name if model_args.tokenizer_name else model_args.model_name_or_path,
-        cache_dir=model_args.cache_dir,
-    )
-    model = DenseModel.build(
-        model_args,
-        training_args,
-        config=config,
-        cache_dir=model_args.cache_dir,
-    )
+
+    if mvrl_args.model_type == "default":
+        tokenizer = AutoTokenizer.from_pretrained(
+            model_args.tokenizer_name if model_args.tokenizer_name else model_args.model_name_or_path,
+            cache_dir=model_args.cache_dir,
+        )
+        model = DenseModel.build(
+            model_args,
+            training_args,
+            config=config,
+            cache_dir=model_args.cache_dir,
+        )
+    else:
+        raise NotImplementedError(mvrl_args.model_type)
 
     train_dataset = HFTrainDataset(
         tokenizer=tokenizer, data_args=data_args, cache_dir=data_args.data_cache_dir or model_args.cache_dir

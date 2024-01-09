@@ -54,12 +54,12 @@ class EncoderModel(nn.Module):
     TRANSFORMER_CLS = AutoModel
 
     def __init__(
-        self,
-        lm_q: PreTrainedModel,
-        lm_p: PreTrainedModel,
-        pooler: nn.Module = None,
-        untie_encoder: bool = False,
-        negatives_x_device: bool = False,
+            self,
+            lm_q: PreTrainedModel,
+            lm_p: PreTrainedModel,
+            pooler: nn.Module = None,
+            untie_encoder: bool = False,
+            negatives_x_device: bool = False
     ):
         super().__init__()
         self.lm_q = lm_q
@@ -101,6 +101,7 @@ class EncoderModel(nn.Module):
         else:
             scores = self.compute_similarity(q_reps, p_reps)
             loss = None
+
         return EncoderOutput(
             loss=loss,
             scores=scores,
@@ -143,10 +144,10 @@ class EncoderModel(nn.Module):
 
     @classmethod
     def build(
-        cls,
-        model_args: ModelArguments,
-        train_args: TrainingArguments,
-        **hf_kwargs,
+            cls,
+            model_args: ModelArguments,
+            train_args: TrainingArguments,
+            **hf_kwargs,
     ):
         # load local
         if os.path.isdir(model_args.model_name_or_path):
@@ -184,9 +185,9 @@ class EncoderModel(nn.Module):
 
     @classmethod
     def load(
-        cls,
-        model_name_or_path,
-        **hf_kwargs,
+            cls,
+            model_name_or_path,
+            **hf_kwargs,
     ):
         # load local
         untie_encoder = True
