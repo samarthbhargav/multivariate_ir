@@ -75,6 +75,8 @@ class DataArguments:
         default=None, metadata={"help": "Where do you want to store the data downloaded from huggingface"}
     )
 
+    exclude_title: bool = field(default=False)
+
     def __post_init__(self):
         if self.dataset_name is not None:
             info = self.dataset_name.split("/")

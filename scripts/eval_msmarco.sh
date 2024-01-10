@@ -28,7 +28,8 @@ python -m tevatron.driver.encode \
   --dataset_name Tevatron/msmarco-passage \
   --encoded_save_path $OUT_DIR/corpus_msmarco-passage.pkl \
   --cache_dir $MODEL_CACHE_DIR \
-  --data_cache_dir $DATA_CACHE_DIR
+  --data_cache_dir $DATA_CACHE_DIR \
+  --exclude_title
 
 # this requires much more mem because we're not sharding
 srun -p gpu --gres=gpu:1 --mem=96G --time=24:00:00 --exclude=ilps-cn111,ilps-cn108 python -m tevatron.driver.encode \
@@ -37,6 +38,7 @@ srun -p gpu --gres=gpu:1 --mem=96G --time=24:00:00 --exclude=ilps-cn111,ilps-cn1
   --fp16 \
   --per_device_eval_batch_size 512 \
   --p_max_len 128 \
+  --exclude_title \
   --q_max_len 32 \
   --dataset_name Tevatron/msmarco-passage-corpus \
   --encoded_save_path /ivi/ilps/personal/sbharga/mvrl/embeds/corpus_msmarco-passage.pkl \
@@ -62,7 +64,8 @@ do
   --dataset_name Tevatron/msmarco-passage/$split \
   --encoded_save_path /ivi/ilps/personal/sbharga/mvrl/embeds/$split_msmarco-passage.pkl \
   --cache_dir /ivi/ilps/personal/sbharga/hf_model_cache \
-  --data_cache_dir /ivi/ilps/personal/sbharga/hf_data_cache
+  --data_cache_dir /ivi/ilps/personal/sbharga/hf_data_cache \
+  --exclude_title
 
   # run, also require more mem
   srun -p gpu --gres=gpu:1 --mem=64G --time=24:00:00 --exclude=ilps-cn111,ilps-cn108 python -m tevatron.faiss_retriever \
