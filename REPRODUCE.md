@@ -4,16 +4,10 @@
 ```
 # After Cloning Repo and cd'ing into repo
 conda create --name multivariate_ir python=3.8
-# TODO conda activate?
 conda activate multivariate_ir
-
-conda install pytorch==2.1.0 torchvision==0.16.0 torchaudio==2.1.0 pytorch-cuda=11.8 -c pytorch -c nvidia
+conda install faiss-gpu pytorch==1.12.1 torchvision==0.13.1 torchaudio==0.12.1 cudatoolkit=10.2 -c pytorch
 pip install -e .
-# only if an error pops up?
-pip install accelerate -U
-# for eval
-pip install pytrec_eval ir_datasets
-conda install -c pytorch -c nvidia faiss-gpu=1.7.4 mkl=2021 blas=1.0=mkl
+pip install accelerate -U && pip install pytrec_eval ir_datasets
 
 ```
 
@@ -34,8 +28,17 @@ None
 Execute the following command to obtain the trained model:
 
 ```
-
+sh run_scripts/tasb.sh
 ``` 
+
+
+### DR Model
+
+#### Hyperparam search
+
+#### Training
+
+#### Obtaining run
 
 ### TAS-B
 
