@@ -1,12 +1,12 @@
 MODEL_NAME=sebastian-hofstaetter/distilbert-dot-tas_b-b256-msmarco
-TEMP_DIR=/ivi/ilps/personal/sbharga/temp_dir
-MODEL_OUT=/ivi/ilps/personal/sbharga/mvrl/tas_b_zeroshot/
-MODEL_CACHE_DIR=/ivi/ilps/personal/sbharga/hf_model_cache
-DATA_CACHE_DIR=/ivi/ilps/personal/sbharga/hf_data_cache
+TEMP_DIR=/ivi/ilps/projects/multivariate_ir/.temp/
+MODEL_OUT=/ivi/ilps/projects/multivariate_ir/experiments/tas_b_zeroshot
+MODEL_CACHE_DIR=/ivi/ilps/projects/multivariate_ir/.hf_model_cache
+DATA_CACHE_DIR=/ivi/ilps/projects/multivariate_ir/.hf_data_cache
 TOP_K=100
 BATCH_SIZE=512
-METRICS="ndcg_cut_10,map,recip_rank"
-RESULTS_DIR=final_results/tas_b_zeroshot/
+METRICS="ndcg_cut_10,map,recip_rank,recip_rank_cut_10"
+RESULTS_DIR=$MODEL_OUT/runs
 
 
 mkdir -p $RESULTS_DIR
@@ -98,41 +98,39 @@ python -m tevatron.driver.encode \
 
 echo "eval scifact"
 
-BATCH_SIZE=
-TEST_SETS=('dev' 'test')
-for split in "${TEST_SETS[@]}"
-do
-  echo "eval $split"
-  # get embeds
+BATCH_SIZE=256
 
-  python -m tevatron.driver.encode \
-  --output_dir=$TEMP_DIR \
-  --model_name_or_path $MODEL_NAME \
-  --fp16 \
-  --per_device_eval_batch_size $BATCH_SIZE \
-  --q_max_len 64 \
-  --encode_is_qry \
-  --dataset_name Tevatron/scifact/$split \
-  --encoded_save_path $MODEL_OUT/$split_scifact.pkl \
-  --cache_dir $MODEL_CACHE_DIR \
-  --data_cache_dir $DATA_CACHE_DIR
+python -m tevatron.driver.encode \
+--output_dir=$TEMP_DIR \
+--model_name_or_path $MODEL_NAME \
+--fp16 \
+--per_device_eval_batch_size $BATCH_SIZE \
+--q_max_len 64 \
+--encode_is_qry \
+--dataset_name Tevatron/scifact/dev \
+--encoded_save_path $MODEL_OUT/dev_scifact.pkl \
+--cache_dir $MODEL_CACHE_DIR \
+--data_cache_dir $DATA_CACHE_DIR
 
 
-  # obtain run
-  python -m tevatron.faiss_retriever \
-  --query_reps $MODEL_OUT/$split_scifact.pkl \
-  --passage_reps $MODEL_OUT/corpus_scifact.pkl \
-  --depth $TOP_K \
-  --batch_size $BATCH_SIZE \
-  --save_text \
-  --save_ranking_to $MODEL_OUT/$split_scifact.run
+# obtain run
+python -m tevatron.faiss_retriever \
+--query_reps $MODEL_OUT/dev_scifact.pkl \
+--passage_reps $MODEL_OUT/corpus_scifact.pkl \
+--depth $TOP_K \
+--batch_size $BATCH_SIZE \
+--save_text \
+--save_ranking_to $MODEL_OUT/dev_scifact.run
 
 
-done
+python eval_run.py --input $MODEL_OUT/dev_scifact.run \
+      --hf_dataset Tevatron/scifact/dev --metrics $METRICS  \
+      --output $RESULTS_DIR/dev_scifact.json
 
 
-## TODO: eval_run.py
-
+########################################################################################################################
+#### BIER datasets ####
+########################################################################################################################
 
 BIER_DATASETS=( "fiqa" "trec-covid" "cqadupstack-android" "cqadupstack-english" "cqadupstack-gaming" "cqadupstack-gis" "cqadupstack-wordpress" "cqadupstack-physics" "cqadupstack-programmers" "cqadupstack-stats" "cqadupstack-tex" "cqadupstack-unix" "cqadupstack-webmasters" "cqadupstack-wordpress" )
 BATCH_SIZE=128
@@ -175,5 +173,7 @@ do
     --save_ranking_to $MODEL_OUT/bier_test_${bds}.run
 
 
-    ## TODO: eval_run.py
+    python eval_run.py --input $MODEL_OUT/bier_test_${bds}.run \
+      --hf_dataset Tevatron/beir:${bds}/test --metrics $METRICS  \
+      --output $MODEL_OUT/bier_test_${bds}.json
 done
