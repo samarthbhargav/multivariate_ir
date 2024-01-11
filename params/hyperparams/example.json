@@ -1,0 +1,32 @@
+{
+  "do_train": true,
+  "model_name_or_path": "distilbert-base-uncased",
+  "untie_encoder": true,
+  "dataset_name": "Tevatron/msmarco-passage",
+  "train_n_passages": 3,
+  "q_max_len": 32,
+  "p_max_len": 156,
+  "grad_cache": false,
+  "fp16": true,
+  "fp16_full_eval": true,
+  "num_train_epochs": 1,
+  "data_cache_dir": "/ivi/ilps/projects/multivariate_ir/.hf_data_cache",
+  "cache_dir": "/ivi/ilps/projects/multivariate_ir/.hf_model_cache",
+  "batch_size": 512,
+  "learning_rate": [
+    1e-06,
+    2e-06,
+    3e-06,
+    4e-06,
+    5e-06,
+    6e-06,
+    7e-06,
+    8e-06,
+    9e-06,
+    1e-05
+  ],
+  "warmup_ratio": [
+    0,
+    0.1
+  ]
+}
