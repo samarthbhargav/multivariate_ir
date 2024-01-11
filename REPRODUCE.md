@@ -11,7 +11,10 @@ pip install accelerate -U && pip install pytrec_eval ir_datasets
 
 ```
 
+Execute the following lines to prepare the datasets used in evaluation
+```
 
+```
 
 ## Baseline models
 

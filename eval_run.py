@@ -8,14 +8,32 @@ import numpy as np
 
 logger = logging.getLogger(__name__)
 
+SUPP_HF_DATASETS = {"Tevatron/scifact/dev"}
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser("eval_run")
     parser.add_argument("--input", help="location of run", required=True)
     parser.add_argument("--metrics", help="list of metrics, csv", required=True)
-    parser.add_argument("--dataset", help="name of dataset in ir_datasets", required=True)
+    parser.add_argument("--dataset", help="name of dataset in ir_datasets", default=None)
+    parser.add_argument("--hf_dataset", help="name of dataset in ir_datasets", default=None)
     parser.add_argument("--output", default=None, help="if provided, saves the results in a JSON file")
 
     args = parser.parse_args()
+
+    assert args.dataset is not None or args.hf_dataset is not None
+    if args.hf_dataset:
+        assert args.hf_dataset in SUPP_HF_DATASETS
+
+
+    if args.dataset:
+        dataset = ir_datasets.load(args.dataset)
+        qrels = defaultdict(dict)
+        for qrel in dataset.qrels_iter():
+            qrels[qrel.query_id][qrel.doc_id] = qrel.relevance
+
+        logger.info(f"loaded {len(qrels)} queries from {dataset}")
+    else:
+        raise NotImplementedError()
 
     run = defaultdict(dict)
     # read run file
@@ -27,13 +45,6 @@ if __name__ == '__main__':
             run[qid][docid] = float(score)
 
     logger.info(f"loaded run with {len(run)} from {args.input}")
-
-    dataset = ir_datasets.load(args.dataset)
-    qrels = defaultdict(dict)
-    for qrel in dataset.qrels_iter():
-        qrels[qrel.query_id][qrel.doc_id] = qrel.relevance
-
-    logger.info(f"loaded {len(qrels)} queries from {dataset}")
 
     metrics = args.metrics.split(",")
     logger.info(f"evaluating: {metrics}")

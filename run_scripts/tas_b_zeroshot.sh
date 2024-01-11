@@ -14,7 +14,7 @@ mkdir -p $MODEL_OUT
 
 
 ########################################################################################################################
-#### SciFact ####
+#### MS-MARCO ####
 ########################################################################################################################
 
 ## Encode MS-MARCO Passage
@@ -78,3 +78,102 @@ python eval_run.py --input $MODEL_OUT/dl20_msmarco-passage.run \
       --output $RESULTS_DIR/dl20.json
 
 
+########################################################################################################################
+#### SciFact ####
+########################################################################################################################
+# smaller batch size for SciFact
+BATCH_SIZE=256
+
+echo "encoding SciFact corpus"
+python -m tevatron.driver.encode \
+  --output_dir=$TEMP_DIR \
+  --model_name_or_path $MODEL_NAME \
+  --fp16 \
+  --per_device_eval_batch_size $BATCH_SIZE \
+  --p_max_len 512 \
+  --dataset_name Tevatron/scifact-corpus \
+  --encoded_save_path $MODEL_OUT/corpus_scifact.pkl \
+  --cache_dir $MODEL_CACHE_DIR \
+  --data_cache_dir $DATA_CACHE_DIR \
+
+echo "eval scifact"
+
+BATCH_SIZE=
+TEST_SETS=('dev' 'test')
+for split in "${TEST_SETS[@]}"
+do
+  echo "eval $split"
+  # get embeds
+
+  python -m tevatron.driver.encode \
+  --output_dir=$TEMP_DIR \
+  --model_name_or_path $MODEL_NAME \
+  --fp16 \
+  --per_device_eval_batch_size $BATCH_SIZE \
+  --q_max_len 64 \
+  --encode_is_qry \
+  --dataset_name Tevatron/scifact/$split \
+  --encoded_save_path $MODEL_OUT/$split_scifact.pkl \
+  --cache_dir $MODEL_CACHE_DIR \
+  --data_cache_dir $DATA_CACHE_DIR
+
+
+  # obtain run
+  python -m tevatron.faiss_retriever \
+  --query_reps $MODEL_OUT/$split_scifact.pkl \
+  --passage_reps $MODEL_OUT/corpus_scifact.pkl \
+  --depth $TOP_K \
+  --batch_size $BATCH_SIZE \
+  --save_text \
+  --save_ranking_to $MODEL_OUT/$split_scifact.run
+
+
+done
+
+
+## TODO: eval_run.py
+
+
+BIER_DATASETS=( "fiqa" "trec-covid" "cqadupstack-android" "cqadupstack-english" "cqadupstack-gaming" "cqadupstack-gis" "cqadupstack-wordpress" "cqadupstack-physics" "cqadupstack-programmers" "cqadupstack-stats" "cqadupstack-tex" "cqadupstack-unix" "cqadupstack-webmasters" "cqadupstack-wordpress" )
+BATCH_SIZE=128
+for bds in "${BIER_DATASETS[@]}"
+do
+    echo "eval $bds"
+
+    echo "encoding corpus"
+    python -m tevatron.driver.encode \
+    --output_dir=$TEMP_DIR \
+    --model_name_or_path $MODEL_NAME \
+    --fp16 \
+    --per_device_eval_batch_size $BATCH_SIZE \
+    --p_max_len 512 \
+    --dataset_name Tevatron/beir-corpus:${bds} \
+    --encoded_save_path $MODEL_OUT/corpus_bier_${bds}.pkl \
+    --cache_dir $MODEL_CACHE_DIR \
+    --data_cache_dir $DATA_CACHE_DIR
+
+    echo "encoding test queries"
+    python -m tevatron.driver.encode \
+    --output_dir=$TEMP_DIR \
+    --model_name_or_path $MODEL_NAME \
+    --fp16 \
+    --per_device_eval_batch_size $BATCH_SIZE \
+    --dataset_name Tevatron/beir:${bds}/test \
+    --encoded_save_path $MODEL_OUT/test_bier_${bds}.pkl \
+    --q_max_len 512 \
+    --encode_is_qry \
+    --cache_dir $MODEL_CACHE_DIR \
+    --data_cache_dir $DATA_CACHE_DIR
+
+    echo "obtaining run"
+    python -m tevatron.faiss_retriever \
+    --query_reps $MODEL_OUT/test_bier_${bds}.pkl \
+    --passage_reps $MODEL_OUT/corpus_bier_${bds}.pkl \
+    --depth 1000 \
+    --batch_size $BATCH_SIZE \
+    --save_text \
+    --save_ranking_to $MODEL_OUT/bier_test_${bds}.run
+
+
+    ## TODO: eval_run.py
+done

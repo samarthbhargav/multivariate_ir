@@ -9,7 +9,7 @@ fi
 MODEL_PATH=$1
 OUT_DIR=$2
 TEMP_DIR=./temp_dir/
-BATCH_SIZE=1
+BATCH_SIZE=512
 P_MAX_LEN=128
 Q_MAX_LEN=32
 DATA_CACHE_DIR=/ivi/ilps/personal/sbharga/hf_data_cache
@@ -43,7 +43,8 @@ srun -p gpu --gres=gpu:1 --mem=96G --time=24:00:00 --exclude=ilps-cn111,ilps-cn1
   --dataset_name Tevatron/msmarco-passage-corpus \
   --encoded_save_path /ivi/ilps/personal/sbharga/mvrl/embeds/corpus_msmarco-passage.pkl \
   --cache_dir /ivi/ilps/personal/sbharga/hf_model_cache \
-  --data_cache_dir /ivi/ilps/personal/sbharga/hf_data_cache
+  --data_cache_dir /ivi/ilps/personal/sbharga/hf_data_cache \
+  --exclude_title
 
 
 
@@ -90,4 +91,9 @@ python eval_run.py --input /ivi/ilps/personal/sbharga/mvrl/embeds/dl19_msmarco-p
 python eval_run.py --input /ivi/ilps/personal/sbharga/mvrl/embeds/dl20_msmarco-passage.run \
       --dataset msmarco-passage/trec-dl-2020/judged --metrics $METRICS  \
       --output $RESULTS_DIR/dl20.json
+
+
+
+
+
 
