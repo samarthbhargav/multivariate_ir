@@ -59,6 +59,7 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
+    print(f"args: {args}")
     assert args.dataset is not None or args.hf_dataset is not None
     if args.hf_dataset:
         assert args.hf_dataset in SUPP_HF_DATASETS
