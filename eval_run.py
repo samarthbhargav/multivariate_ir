@@ -56,7 +56,6 @@ if __name__ == '__main__':
     parser.add_argument("--dataset", help="name of dataset in ir_datasets", default=None)
     parser.add_argument("--hf_dataset", help="name of dataset in ir_datasets", default=None)
     parser.add_argument("--output", default=None, help="if provided, saves the results in a JSON file")
-
     args = parser.parse_args()
 
     print(f"args: {args}")

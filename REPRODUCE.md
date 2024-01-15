@@ -7,7 +7,7 @@ conda create --name multivariate_ir python=3.8
 conda activate multivariate_ir
 conda install faiss-gpu pytorch==1.12.1 torchvision==0.13.1 torchaudio==0.12.1 cudatoolkit=10.2 -c pytorch
 pip install -e .
-pip install accelerate -U && pip install pytrec_eval ir_datasets
+pip install accelerate -U && pip install pytrec_eval ir_datasets notebook
 
 ```
 
