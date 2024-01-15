@@ -10,12 +10,12 @@ import numpy as np
 SUPP_HF_DATASETS = {
     "Tevatron/scifact/dev": "beir/scifact/test",
     "Tevatron/beir:fiqa/test": "beir/fiqa/test",
-    "Tevatron/beir:trec-covid": "beir/trec-covid",
+    "Tevatron/beir:trec-covid/test": "beir/trec-covid",
 }
 
 for domain in ["android", "english", "gaming", "gis", "mathematica", "physics",
                "programmers", "stats", "tex", "unix", "webmasters", "wordpress"]:
-    SUPP_HF_DATASETS[f"Tevatron/beir:cqadupstack-{domain}"] = f"beir/cqadupstack/{domain}"
+    SUPP_HF_DATASETS[f"Tevatron/beir:cqadupstack-{domain}/test"] = f"beir/cqadupstack/{domain}"
 
 
 def evaluate(run, qrels, metrics):
