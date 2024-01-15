@@ -61,19 +61,19 @@ do
   --depth ${TOP_K} \
   --batch_size  ${BATCH_SIZE} \
   --save_text \
-  --save_ranking_to ${MODEL_OUT}/${split}_msmarco-passage.run
+  --save_ranking_to ${RESULTS_DIR}/${split}_msmarco-passage.run
 done
 
 
-python eval_run.py --input ${MODEL_OUT}/dev_msmarco-passage.run \
+python eval_run.py --input ${RESULTS_DIR}/dev_msmarco-passage.run \
       --dataset msmarco-passage/dev/judged --metrics ${METRICS}  \
       --output ${RESULTS_DIR}/dev_msmarco-passage.json
 
-python eval_run.py --input ${MODEL_OUT}/dl19_msmarco-passage.run \
+python eval_run.py --input ${RESULTS_DIR}/dl19_msmarco-passage.run \
       --dataset msmarco-passage/trec-dl-2019/judged --metrics ${METRICS}  \
       --output ${RESULTS_DIR}/dl19.json
 
-python eval_run.py --input ${MODEL_OUT}/dl20_msmarco-passage.run \
+python eval_run.py --input ${RESULTS_DIR}/dl20_msmarco-passage.run \
       --dataset msmarco-passage/trec-dl-2020/judged --metrics ${METRICS}  \
       --output ${RESULTS_DIR}/dl20.json
 
@@ -117,10 +117,10 @@ python -m tevatron.faiss_retriever \
 --depth ${TOP_K} \
 --batch_size ${BATCH_SIZE} \
 --save_text \
---save_ranking_to ${MODEL_OUT}/dev_scifact.run
+--save_ranking_to ${RESULTS_DIR}/dev_scifact.run
 
 
-python eval_run.py --input ${MODEL_OUT}/dev_scifact.run \
+python eval_run.py --input ${RESULTS_DIR}/dev_scifact.run \
       --hf_dataset Tevatron/scifact/dev --metrics ${METRICS}  \
       --output ${RESULTS_DIR}/dev_scifact.json
 
@@ -167,10 +167,10 @@ do
     --depth 1000 \
     --batch_size ${BATCH_SIZE} \
     --save_text \
-    --save_ranking_to ${MODEL_OUT}/bier_test_${bds}.run
+    --save_ranking_to ${RESULTS_DIR}/bier_test_${bds}.run
 
 
-    python eval_run.py --input ${MODEL_OUT}/bier_test_${bds}.run \
+    python eval_run.py --input ${RESULTS_DIR}/bier_test_${bds}.run \
       --hf_dataset Tevatron/beir:${bds}/test --metrics ${METRICS}  \
-      --output ${MODEL_OUT}/bier_test_${bds}.json
+      --output ${RESULTS_DIR}/bier_test_${bds}.json
 done
