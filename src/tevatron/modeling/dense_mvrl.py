@@ -30,18 +30,21 @@ class MVRLDenseModel(DenseModel):
         self.projection_dim = int(output_dim / 2) - 1
         self.projection_mean = nn.Linear(output_dim, self.projection_dim, bias=False)
 
-        if var_activation == "softplus":
+        self.var_activation = var_activation
+        self.var_activation_params = var_activation_params
+
+        if self.var_activation == "softplus":
             assert "beta" in var_activation_params
             self.projection_var = nn.Sequential(
                 nn.Linear(output_dim, self.projection_dim, bias=False),
                 nn.Softplus(beta=var_activation_params["beta"])
             )
         else:
-            # assume that you're producing LogVar
             self.projection_var = nn.Linear(output_dim, self.projection_dim, bias=False)
             raise NotImplementedError("TODO")
 
-        logger.info("projection_var: {self.projection_var}")
+        logger.info(f"projection_var: {self.projection_var}")
+        logger.info(f"projection_mean: {self.projection_mean}")
 
     def get_faiss_embed(self, means, vars):
         raise NotImplementedError("TODO")
