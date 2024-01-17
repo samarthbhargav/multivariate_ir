@@ -15,11 +15,12 @@ logger = logging.getLogger(__name__)
 
 class TrainDataset(Dataset):
     def __init__(
-        self,
-        data_args: DataArguments,
-        dataset: datasets.Dataset,
-        tokenizer: PreTrainedTokenizer,
-        trainer: TevatronTrainer = None,
+            self,
+            data_args: DataArguments,
+            dataset: datasets.Dataset,
+            tokenizer: PreTrainedTokenizer,
+            trainer: TevatronTrainer = None,
+            is_validation=False,
     ):
         self.train_data = dataset
         self.tok = tokenizer
@@ -27,6 +28,7 @@ class TrainDataset(Dataset):
 
         self.data_args = data_args
         self.total_len = len(self.train_data)
+        self.is_validation = is_validation
 
     def create_one_example(self, text_encoding: List[int], is_query=False):
         item = self.tok.prepare_for_model(
@@ -57,27 +59,61 @@ class TrainDataset(Dataset):
 
         if self.data_args.positive_passage_no_shuffle:
             pos_psg = group_positives[0]
+            if self.is_validation:
+                pos_psg_id = group["eval_meta"]["positive_passages"][0]
         else:
-            pos_psg = group_positives[(_hashed_seed + epoch) % len(group_positives)]
+            _ = (_hashed_seed + epoch) % len(group_positives)
+            pos_psg = group_positives[_]
+            if self.is_validation:
+                pos_psg_id = group["eval_meta"]["positive_passages"][_]
+
         encoded_passages.append(self.create_one_example(pos_psg))
+        if self.is_validation:
+            # qid, doc_id, label (assuming binary relevance? TODO make more general?)
+            labels = [
+                (group["eval_meta"]["query_id"], pos_psg_id, 1)
+            ]
 
         negative_size = self.data_args.train_n_passages - 1
         if len(group_negatives) < negative_size:
-            negs = random.choices(group_negatives, k=negative_size)
+            neg_idx = random.choices(list(range(len(group_negatives))), k=negative_size)
+            negs = [group_negatives[_] for _ in neg_idx]
+            if self.is_validation:
+                neg_psg_ids = [group["eval_meta"]["negative_passages"][_] for _ in neg_idx]
         elif self.data_args.train_n_passages == 1:
             negs = []
+            if self.is_validation:
+                neg_psg_ids = []
         elif self.data_args.negative_passage_no_shuffle:
             negs = group_negatives[:negative_size]
+            if self.is_validation:
+                neg_psg_ids = group["eval_meta"]["negative_passages"][:negative_size]
         else:
             _offset = epoch * negative_size % len(group_negatives)
-            negs = [x for x in group_negatives]
-            random.Random(_hashed_seed).shuffle(negs)
-            negs = negs * 2
-            negs = negs[_offset : _offset + negative_size]
+            if self.is_validation:
+                negs = [x for x in zip(group_negatives, group["eval_meta"]["negative_passages"])]
+                random.Random(_hashed_seed).shuffle(negs)
+                negs = negs * 2
+                negs = negs[_offset: _offset + negative_size]
+                neg_psg_ids = [_[1] for _ in negs]
+                negs = [_[0] for _ in negs]
+            else:
+                negs = [x for x in group_negatives]
+                random.Random(_hashed_seed).shuffle(negs)
+                negs = negs * 2
+                negs = negs[_offset: _offset + negative_size]
 
-        for neg_psg in negs:
+        for i, neg_psg in enumerate(negs):
             encoded_passages.append(self.create_one_example(neg_psg))
+            if self.is_validation:
+                # qid, doc_id, label (assuming binary relevance? TODO make more general?)
+                labels.append((
+                    (group["eval_meta"]["query_id"], neg_psg_ids[i], 0)
+                ))
 
+        if self.is_validation:
+            # returns 1, N, N
+            return encoded_query, encoded_passages, labels
         return encoded_query, encoded_passages
 
 
@@ -116,6 +152,12 @@ class QPCollator(DataCollatorWithPadding):
     max_p_len: int = 128
 
     def __call__(self, features):
+        # if eval_meta is included, then it's from the validation set
+        if len(features[0]) == 2:
+            is_train = True
+        else:
+            is_train = False
+
         qq = [f[0] for f in features]
         dd = [f[1] for f in features]
 
@@ -137,7 +179,11 @@ class QPCollator(DataCollatorWithPadding):
             return_tensors="pt",
         )
 
-        return q_collated, d_collated
+        if is_train:
+            return q_collated, d_collated
+        else:
+            labels = [f[2] for f in features]
+            return q_collated, d_collated, labels
 
 
 @dataclass

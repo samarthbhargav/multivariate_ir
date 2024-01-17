@@ -42,10 +42,12 @@ class ModelArguments:
 @dataclass
 class DataArguments:
     train_dir: str = field(default=None, metadata={"help": "Path to train directory"})
+    val_dir: str = field(default=None, metadata={"help": "Path to validation directory"})
     dataset_name: str = field(default=None, metadata={"help": "huggingface dataset name"})
     passage_field_separator: str = field(default=" ")
     dataset_proc_num: int = field(default=12, metadata={"help": "number of proc used in dataset preprocess"})
     train_n_passages: int = field(default=8)
+    eval_n_passages: int = field(default=31)
     positive_passage_no_shuffle: bool = field(default=False, metadata={"help": "always use the first positive passage"})
     negative_passage_no_shuffle: bool = field(
         default=False, metadata={"help": "always use the first negative passages"}
@@ -76,6 +78,7 @@ class DataArguments:
     )
 
     exclude_title: bool = field(default=False)
+    add_var_token: bool = field(default=False)
 
     def __post_init__(self):
         if self.dataset_name is not None:
@@ -113,10 +116,14 @@ class TevatronTrainingArguments(TrainingArguments):
     gc_q_chunk_size: int = field(default=4)
     gc_p_chunk_size: int = field(default=32)
 
+    disable_distributed: bool = field(default=False, metadata={"help": "If set, disables distributed training"})
+    early_stopping_patience: int = field(default=0, metadata={"help": "If > 0, enables early stopping, set to patience "})
+    early_stopping_threshold: float = field(default=0, metadata={"help": "early stopping threshold"})
+
 
 @dataclass
 class MVRLTrainingArguments:
     model_type: str = field(default="default", metadata={"help": "either default or mvrl"})
     var_activation: str = field(default="softplus", metadata={"help": "either softplus or logvar"})
-    var_activation_param_b: str = field(default=None,
-                                        metadata={"help": "the param 'beta' for var_activation=softplus"})
+    var_activation_param_b: float = field(default=None,
+                                          metadata={"help": "the param 'beta' for var_activation=softplus"})

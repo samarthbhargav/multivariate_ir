@@ -1,0 +1,48 @@
+import datasets
+import random
+import numpy as np
+import torch
+import sys
+import os
+
+if __name__ == '__main__':
+    seed = 42
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    path = sys.argv[1]
+    hf_cache_dir = sys.argv[2]
+    print("hf cache dir", hf_cache_dir)
+    print("result root ", path)
+
+    os.makedirs(path, exist_ok=True)
+    dataset = datasets.load_dataset(
+        "Tevatron/msmarco-passage",
+        "default",
+        token=True,
+        cache_dir=hf_cache_dir
+    )
+
+    # split the training set into training/validation
+    dataset = dataset["train"]
+
+    dev_size = 6980
+    train_size = len(dataset)
+    # sample val set equal to the dev set size
+    splits = dataset.train_test_split(test_size=6980 / train_size)
+
+    # ['614670', '549277', '611068', '515554', '1158539']
+    print(splits["train"]["query_id"][:5])
+    # ['280161', '220852', '994332', '451240', '605646']
+    print(splits["test"]["query_id"][:5])
+
+    splits["train"].save_to_disk(os.path.join(path, "msmarco/train"))
+    splits["test"].save_to_disk(os.path.join(path, "msmarco/validation"))
+
+    # create a tiny dataset for quick testing
+    n = 20
+    splits["train"].train_test_split(test_size=n / len(splits["train"]))["test"].save_to_disk(
+        os.path.join(path, "msmarco-small/train"))
+    n = 5
+    splits["test"].train_test_split(test_size=n / len(splits["test"]))["test"].save_to_disk(
+        os.path.join(path, "msmarco-small/train"))

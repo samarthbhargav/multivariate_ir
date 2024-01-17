@@ -10,24 +10,26 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 from transformers import AutoConfig, AutoTokenizer, HfArgumentParser
 
-from tevatron.arguments import DataArguments, ModelArguments
+from tevatron.arguments import DataArguments, ModelArguments, MVRLTrainingArguments
 from tevatron.arguments import TevatronTrainingArguments as TrainingArguments
 from tevatron.data import EncodeCollator, EncodeDataset
 from tevatron.datasets import HFCorpusDataset, HFQueryDataset
 from tevatron.modeling import DenseModel, EncoderOutput
+from tevatron.modeling.dense_mvrl import MVRLDenseModel
 
 logger = logging.getLogger(__name__)
 
 
 def main():
-    parser = HfArgumentParser((ModelArguments, DataArguments, TrainingArguments))
+    parser = HfArgumentParser((ModelArguments, DataArguments, TrainingArguments, MVRLTrainingArguments))
     if len(sys.argv) == 2 and sys.argv[1].endswith(".json"):
-        model_args, data_args, training_args = parser.parse_json_file(json_file=os.path.abspath(sys.argv[1]))
+        model_args, data_args, training_args, mvrl_args = parser.parse_json_file(json_file=os.path.abspath(sys.argv[1]))
     else:
-        model_args, data_args, training_args = parser.parse_args_into_dataclasses()
+        model_args, data_args, training_args, mvrl_args = parser.parse_args_into_dataclasses()
         model_args: ModelArguments
         data_args: DataArguments
         training_args: TrainingArguments
+        mvrl_args: MVRLTrainingArguments
 
     if training_args.local_rank > 0 or training_args.n_gpu > 1:
         raise NotImplementedError("Multi-GPU encoding is not supported.")
@@ -45,16 +47,32 @@ def main():
         num_labels=num_labels,
         cache_dir=model_args.cache_dir,
     )
+
+    if mvrl_args.model_type.startswith("mvrl"):
+        assert data_args.add_var_token, "This flag has to be enabled for MVRL models"
+
     tokenizer = AutoTokenizer.from_pretrained(
         model_args.tokenizer_name if model_args.tokenizer_name else model_args.model_name_or_path,
         cache_dir=model_args.cache_dir,
     )
 
-    model = DenseModel.load(
-        model_name_or_path=model_args.model_name_or_path,
-        config=config,
-        cache_dir=model_args.cache_dir,
-    )
+    if mvrl_args.model_type == "default":
+        model = DenseModel.load(
+            model_name_or_path=model_args.model_name_or_path,
+            config=config,
+            cache_dir=model_args.cache_dir,
+        )
+    elif mvrl_args.model_type == "mvrl_no_distill":
+        assert "[VAR]" in tokenizer.all_special_tokens
+        model = MVRLDenseModel.load(
+            model_args=model_args,
+            mvrl_args=mvrl_args,
+            model_name_or_path=model_args.model_name_or_path,
+            config=config,
+            cache_dir=model_args.cache_dir
+        )
+    else:
+        raise NotImplementedError(mvrl_args.model_type)
 
     text_max_length = data_args.q_max_len if data_args.encode_is_qry else data_args.p_max_len
     if data_args.encode_is_qry:
@@ -96,7 +114,6 @@ def main():
                 else:
                     model_output: EncoderOutput = model(passage=batch)
                     encoded.append(model_output.p_reps.cpu().detach().numpy())
-
     encoded = np.concatenate(encoded)
 
     with open(data_args.encoded_save_path, "wb") as f:
