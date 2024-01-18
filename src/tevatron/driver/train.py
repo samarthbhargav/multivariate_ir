@@ -148,9 +148,6 @@ def main():
     else:
         callbacks = None
 
-    # training_args.greater_is_better = True
-    # training_args.metric_for_best_model = "mrr"
-    # training_args.load_best_model_at_end = True
     trainer = trainer_cls(
         model=model,
         args=training_args,
