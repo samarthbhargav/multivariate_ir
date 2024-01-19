@@ -164,32 +164,32 @@ def main():
 
     trainer.train()
 
-    logger.info(f"loading best model from {trainer.state.best_model_checkpoint}")
-    # load best model
-    if mvrl_args.model_type == "default":
-        trainer.model = DenseModel.load(
-            model_name_or_path=trainer.state.best_model_checkpoint,
-            config=config,
-            cache_dir=model_args.cache_dir,
-        )
-    elif mvrl_args.model_type == "mvrl_no_distill":
-        assert "[VAR]" in tokenizer.all_special_tokens
-        post_config = AutoConfig.from_pretrained(
-            trainer.state.best_model_checkpoint,
-            num_labels=num_labels,
-            cache_dir=model_args.cache_dir,
-        )
-        trainer.model = MVRLDenseModel.load(
-            model_args=model_args,
-            mvrl_args=mvrl_args,
-            model_name_or_path=trainer.state.best_model_checkpoint,
-            config=post_config,
-            cache_dir=model_args.cache_dir
-        )
-    else:
-        raise NotImplementedError(mvrl_args.model_type)
-
     if val_dataset:
+        logger.info(f"loading best model from {trainer.state.best_model_checkpoint}")
+        # load best model
+        if mvrl_args.model_type == "default":
+            trainer.model = DenseModel.load(
+                model_name_or_path=trainer.state.best_model_checkpoint,
+                config=config,
+                cache_dir=model_args.cache_dir,
+            )
+        elif mvrl_args.model_type == "mvrl_no_distill":
+            assert "[VAR]" in tokenizer.all_special_tokens
+            post_config = AutoConfig.from_pretrained(
+                trainer.state.best_model_checkpoint,
+                num_labels=num_labels,
+                cache_dir=model_args.cache_dir,
+            )
+            trainer.model = MVRLDenseModel.load(
+                model_args=model_args,
+                mvrl_args=mvrl_args,
+                model_name_or_path=trainer.state.best_model_checkpoint,
+                config=post_config,
+                cache_dir=model_args.cache_dir
+            )
+        else:
+            raise NotImplementedError(mvrl_args.model_type)
+
         eval_result = trainer.evaluate(eval_dataset=val_dataset)
     else:
         eval_result = {}
