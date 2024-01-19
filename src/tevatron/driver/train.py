@@ -191,6 +191,8 @@ def main():
 
     if val_dataset:
         eval_result = trainer.evaluate(eval_dataset=val_dataset)
+    else:
+        eval_result = {}
 
     logger.info(f"evaluation result: {eval_result}")
     trainer.save_model()
