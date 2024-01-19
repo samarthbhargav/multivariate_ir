@@ -159,7 +159,8 @@ def main():
         data_collator=QPCollator(tokenizer, max_p_len=data_args.p_max_len, max_q_len=data_args.q_max_len),
     )
     train_dataset.trainer = trainer
-    val_dataset.trainer = trainer
+    if val_dataset:
+        val_dataset.trainer = trainer
 
     trainer.train()
 
@@ -188,7 +189,8 @@ def main():
     else:
         raise NotImplementedError(mvrl_args.model_type)
 
-    eval_result = trainer.evaluate(eval_dataset=val_dataset)
+    if val_dataset:
+        eval_result = trainer.evaluate(eval_dataset=val_dataset)
 
     logger.info(f"evaluation result: {eval_result}")
     trainer.save_model()
