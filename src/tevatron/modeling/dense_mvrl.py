@@ -74,8 +74,6 @@ class MVRLDenseModel(DenseModel):
             mvrl_args: MVRLTrainingArguments,
             **hf_kwargs,
     ):
-        # load local
-        untie_encoder = True
         if os.path.isdir(model_name_or_path):
             _qry_model_path = os.path.join(model_name_or_path, "query_model")
             _psg_model_path = os.path.join(model_name_or_path, "passage_model")
@@ -110,7 +108,7 @@ class MVRLDenseModel(DenseModel):
         model = cls(lm_q=lm_q,
                     lm_p=lm_p,
                     pooler=pooler,
-                    untie_encoder=untie_encoder,
+                    untie_encoder=model_args.untie_encoder,
                     output_dim=model_args.projection_in_dim,
                     var_activation=mvrl_args.var_activation,
                     var_activation_params={"beta": mvrl_args.var_activation_param_b})
@@ -158,23 +156,26 @@ class MVRLDenseModel(DenseModel):
             # just resizing once is enough, since they're both the same models
             self.lm_q.resize_token_embeddings(num_tokens)
 
-    def get_faiss_embed(self, mean_var, is_query):
+    def get_faiss_embed(self, mean_var, is_query, eps=1e-9):
         means, var = mean_var
         BZ = means.size(0)
         D = means.size(1)
         rep = torch.ones(BZ, 2 + 2 * D, device=means.device)
+
         if is_query:
             # 1, \sum var, mean^2, mean
+            # rep[:, 1] = (var + eps).prod(1)
             rep[:, 1] = var.prod(1)
             rep[:, 2:2 + D] = means ** 2
             rep[:, 2 + D:] = means
         else:
             # doc prior, -1/\sum var, -1/var, (2*mu)/var
             rep[:, 0] = -1 * (torch.log(var) + (means ** 2) / var).sum()
-            rep[:, 1] = -1 * (1 / var.prod(1))
+            rep[:, 1] = (-1 / (var.prod(1) + eps))
             rep[:, 2:2 + D] = (-1 / var)
             rep[:, 2 + D:] = (2 * means) / var
 
+        assert not torch.isinf(rep).any() and not torch.isnan(rep).any(), "obtained infs in representation"
         return rep
 
     def forward(self, query: Dict[str, Tensor] = None, passage: Dict[str, Tensor] = None):

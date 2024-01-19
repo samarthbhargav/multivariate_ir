@@ -227,8 +227,8 @@ class EncoderModel(nn.Module):
 
     def save(self, output_dir: str):
         if self.untie_encoder:
-            os.makedirs(os.path.join(output_dir, "query_model"))
-            os.makedirs(os.path.join(output_dir, "passage_model"))
+            os.makedirs(os.path.join(output_dir, "query_model"), exist_ok=True)
+            os.makedirs(os.path.join(output_dir, "passage_model"), exist_ok=True)
             self.lm_q.save_pretrained(os.path.join(output_dir, "query_model"))
             self.lm_p.save_pretrained(os.path.join(output_dir, "passage_model"))
         else:

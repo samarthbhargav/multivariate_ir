@@ -11,6 +11,8 @@ from torch.utils.data import DataLoader
 from transformers.trainer import Trainer
 import pytrec_eval
 
+from safetensors.torch import load_model, save_model
+
 from .loss import DistributedContrastiveLoss, SimpleContrastiveLoss
 
 logger = logging.getLogger(__name__)
