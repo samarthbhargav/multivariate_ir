@@ -1,15 +1,17 @@
+import json
 import logging
 import os
 import sys
 
 import torch
-from transformers import AutoConfig, AutoTokenizer, HfArgumentParser, set_seed
+from transformers import AutoConfig, AutoTokenizer, HfArgumentParser, set_seed, EvalPrediction, EarlyStoppingCallback
 
 from tevatron.arguments import DataArguments, ModelArguments, MVRLTrainingArguments
 from tevatron.arguments import TevatronTrainingArguments as TrainingArguments
 from tevatron.data import QPCollator, TrainDataset
 from tevatron.datasets import HFTrainDataset
 from tevatron.modeling import DenseModel
+from tevatron.modeling.dense_mvrl import MVRLDenseModel
 from tevatron.trainer import GCTrainer
 from tevatron.trainer import TevatronTrainer as Trainer
 
@@ -26,6 +28,11 @@ def cleanup():
     torch.distributed.destroy_process_group()
 
 
+def compute_metrics(pred: EvalPrediction):
+    # super hacky, but the predictions here are the MRR scores
+    return {"mrr": float(pred.predictions.mean())}
+
+
 def main():
     parser = HfArgumentParser((ModelArguments, DataArguments, TrainingArguments, MVRLTrainingArguments))
 
@@ -36,6 +43,7 @@ def main():
         model_args: ModelArguments
         data_args: DataArguments
         training_args: TrainingArguments
+        mvrl_args: MVRLTrainingArguments
 
     if (
             os.path.exists(training_args.output_dir)
@@ -47,7 +55,8 @@ def main():
             f"Output directory ({training_args.output_dir}) already exists and is not empty. Use --overwrite_output_dir to overcome."
         )
 
-    setup(rank=training_args.local_rank, world_size=torch.cuda.device_count())
+    if not training_args.disable_distributed:
+        setup(rank=training_args.local_rank, world_size=torch.cuda.device_count())
 
     # Setup logging
     logging.basicConfig(
@@ -75,46 +84,94 @@ def main():
         cache_dir=model_args.cache_dir,
     )
 
+    if mvrl_args.model_type.startswith("mvrl"):
+        assert data_args.add_var_token, "This flag has to be enabled for MVRL models"
+
+    tokenizer = AutoTokenizer.from_pretrained(
+        model_args.tokenizer_name if model_args.tokenizer_name else model_args.model_name_or_path,
+        cache_dir=model_args.cache_dir,
+    )
     if mvrl_args.model_type == "default":
-        tokenizer = AutoTokenizer.from_pretrained(
-            model_args.tokenizer_name if model_args.tokenizer_name else model_args.model_name_or_path,
-            cache_dir=model_args.cache_dir,
-        )
         model = DenseModel.build(
             model_args,
             training_args,
             config=config,
             cache_dir=model_args.cache_dir,
         )
+    elif mvrl_args.model_type == "mvrl_no_distill":
+        model = MVRLDenseModel.build(
+            model_args,
+            training_args,
+            mvrl_args,
+            config=config,
+            cache_dir=model_args.cache_dir,
+        )
     else:
         raise NotImplementedError(mvrl_args.model_type)
+
+    if mvrl_args.model_type.startswith("mvrl"):
+        logger.info(f"adding VAR token! special tokens before: {tokenizer.all_special_tokens}")
+        tokenizer.add_special_tokens({'additional_special_tokens': ['[VAR]']}, replace_additional_special_tokens=False)
+        model.resize_token_space(len(tokenizer))
+        logger.info(f"special tokens after: {tokenizer.all_special_tokens}")
 
     train_dataset = HFTrainDataset(
         tokenizer=tokenizer, data_args=data_args, cache_dir=data_args.data_cache_dir or model_args.cache_dir
     )
+
     if training_args.local_rank > 0:
         print("Waiting for main process to perform the mapping")
         torch.distributed.barrier()
+    logger.info(f"train dataset: {train_dataset.dataset}")
     train_dataset = TrainDataset(data_args, train_dataset.process(), tokenizer)
+
+    if training_args.do_eval and data_args.val_dir:
+        val_dataset = HFTrainDataset(tokenizer=tokenizer, data_args=data_args,
+                                     cache_dir=data_args.data_cache_dir or model_args.cache_dir,
+                                     is_validation=True)
+        logger.info(f"validation dataset: {val_dataset.dataset}")
+        val_dataset = TrainDataset(data_args, val_dataset.process(), tokenizer, is_validation=True)
+    else:
+        val_dataset = None
+        logger.info(f"no validation dataset selected!")
+
     if training_args.local_rank == 0:
         print("Loading results from main process")
-        torch.distributed.barrier()
+        if not training_args.disable_distributed:
+            torch.distributed.barrier()
 
     trainer_cls = GCTrainer if training_args.grad_cache else Trainer
+
+    if training_args.early_stopping_patience > 0:
+        callbacks = [EarlyStoppingCallback(early_stopping_patience=training_args.early_stopping_patience,
+                                           early_stopping_threshold=training_args.early_stopping_threshold)]
+    else:
+        callbacks = None
+
     trainer = trainer_cls(
         model=model,
         args=training_args,
         train_dataset=train_dataset,
+        eval_dataset=val_dataset,
+        compute_metrics=compute_metrics,
+        callbacks=callbacks,
         data_collator=QPCollator(tokenizer, max_p_len=data_args.p_max_len, max_q_len=data_args.q_max_len),
     )
     train_dataset.trainer = trainer
+    val_dataset.trainer = trainer
 
-    trainer.train()  # TODO: resume training
+    trainer.train()
+    eval_result = trainer.evaluate(eval_dataset=val_dataset)
     trainer.save_model()
+
+    with open(os.path.join(training_args.output_dir, "eval_result.json"), "w") as writer:
+        json.dump(eval_result, writer)
+
     if trainer.is_world_process_zero():
         tokenizer.save_pretrained(training_args.output_dir)
 
-    cleanup()
+    if not training_args.disable_distributed:
+        cleanup()
 
 
 if __name__ == "__main__":

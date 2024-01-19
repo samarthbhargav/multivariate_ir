@@ -13,7 +13,7 @@ pip install accelerate -U && pip install pytrec_eval ir_datasets notebook
 
 Execute the following lines to prepare the datasets used in evaluation
 ```
-
+python prepare_msmarco.py /ivi/ilps/projects/multivariate_ir/data /ivi/ilps/projects/multivariate_ir/.hf_data_cache
 ```
 
 ## Baseline models
@@ -31,7 +31,7 @@ None
 Execute the following command to obtain the trained model:
 
 ```
-sh run_scripts/tasb.sh
+sh run_scripts/tas_b_zeroshot.sh
 ``` 
 
 

@@ -7,7 +7,9 @@ TOP_K=100
 BATCH_SIZE=512
 METRICS="ndcg_cut_10,map,recip_rank,recip_rank_cut_10"
 RESULTS_DIR=${MODEL_OUT}/runs
-
+export IR_DATASETS_HOME=/ivi/ilps/projects/multivariate_ir/.ird_cache/data
+export IR_DATASETS_TMP=/ivi/ilps/projects/multivariate_ir/.ird_cache/temp
+export HF_HOME=/ivi/ilps/projects/multivariate_ir/.hf_data_cache
 
 mkdir -p ${RESULTS_DIR}
 mkdir -p ${MODEL_OUT}

@@ -1,18 +1,121 @@
+import copy
+import json
 import logging
+import os
 from typing import Dict
 
+import numpy as np
 import torch
 import torch.nn as nn
 from torch import Tensor
+from torch.distributions import MultivariateNormal
 
 from . import EncoderOutput
 from .dense import DenseModel
-from transformers import PreTrainedModel
+from transformers import PreTrainedModel, TrainingArguments
+
+from ..arguments import ModelArguments, MVRLTrainingArguments
 
 logger = logging.getLogger(__name__)
 
 
 class MVRLDenseModel(DenseModel):
+
+    @classmethod
+    def build(
+            cls,
+            model_args: ModelArguments,
+            train_args: TrainingArguments,
+            mvrl_args: MVRLTrainingArguments,
+            **hf_kwargs,
+    ):
+        # load local
+        if os.path.isdir(model_args.model_name_or_path):
+            if model_args.untie_encoder:
+                _qry_model_path = os.path.join(model_args.model_name_or_path, "query_model")
+                _psg_model_path = os.path.join(model_args.model_name_or_path, "passage_model")
+                if not os.path.exists(_qry_model_path):
+                    _qry_model_path = model_args.model_name_or_path
+                    _psg_model_path = model_args.model_name_or_path
+                logger.info(f"loading query model weight from {_qry_model_path}")
+                lm_q = cls.TRANSFORMER_CLS.from_pretrained(_qry_model_path, **hf_kwargs)
+                logger.info(f"loading passage model weight from {_psg_model_path}")
+                lm_p = cls.TRANSFORMER_CLS.from_pretrained(_psg_model_path, **hf_kwargs)
+            else:
+                lm_q = cls.TRANSFORMER_CLS.from_pretrained(model_args.model_name_or_path, **hf_kwargs)
+                lm_p = lm_q
+        # load pre-trained
+        else:
+            lm_q = cls.TRANSFORMER_CLS.from_pretrained(model_args.model_name_or_path, **hf_kwargs)
+            lm_p = copy.deepcopy(lm_q) if model_args.untie_encoder else lm_q
+
+        if model_args.add_pooler:
+            pooler = cls.build_pooler(model_args)
+        else:
+            pooler = None
+
+        model = cls(
+            lm_q=lm_q,
+            lm_p=lm_p,
+            output_dim=model_args.projection_in_dim,
+            var_activation=mvrl_args.var_activation,
+            var_activation_params={"beta": mvrl_args.var_activation_param_b},
+            pooler=pooler,
+            negatives_x_device=train_args.negatives_x_device,
+            untie_encoder=model_args.untie_encoder,
+        )
+        return model
+
+    @classmethod
+    def load(
+            cls,
+            model_args,
+            model_name_or_path,
+            mvrl_args: MVRLTrainingArguments,
+            **hf_kwargs,
+    ):
+        # load local
+        untie_encoder = True
+        if os.path.isdir(model_name_or_path):
+            _qry_model_path = os.path.join(model_name_or_path, "query_model")
+            _psg_model_path = os.path.join(model_name_or_path, "passage_model")
+            if os.path.exists(_qry_model_path):
+                logger.info(f"found separate weight for query/passage encoders")
+                logger.info(f"loading query model weight from {_qry_model_path}")
+                lm_q = cls.TRANSFORMER_CLS.from_pretrained(_qry_model_path, **hf_kwargs)
+                logger.info(f"loading passage model weight from {_psg_model_path}")
+                lm_p = cls.TRANSFORMER_CLS.from_pretrained(_psg_model_path, **hf_kwargs)
+                untie_encoder = False
+            else:
+                logger.info(f"try loading tied weight")
+                logger.info(f"loading model weight from {model_name_or_path}")
+                lm_q = cls.TRANSFORMER_CLS.from_pretrained(model_name_or_path, **hf_kwargs)
+                lm_p = lm_q
+        else:
+            logger.info(f"try loading tied weight")
+            logger.info(f"loading model weight from {model_name_or_path}")
+            lm_q = cls.TRANSFORMER_CLS.from_pretrained(model_name_or_path, **hf_kwargs)
+            lm_p = lm_q
+
+        pooler_weights = os.path.join(model_name_or_path, "pooler.pt")
+        pooler_config = os.path.join(model_name_or_path, "pooler_config.json")
+        if os.path.exists(pooler_weights) and os.path.exists(pooler_config):
+            logger.info(f"found pooler weight and configuration")
+            with open(pooler_config) as f:
+                pooler_config_dict = json.load(f)
+            pooler = cls.load_pooler(model_name_or_path, **pooler_config_dict)
+        else:
+            pooler = None
+
+        model = cls(lm_q=lm_q,
+                    lm_p=lm_p,
+                    pooler=pooler,
+                    untie_encoder=untie_encoder,
+                    output_dim=model_args.projection_in_dim,
+                    var_activation=mvrl_args.var_activation,
+                    var_activation_params={"beta": mvrl_args.var_activation_param_b})
+        return model
+
     def __init__(
             self,
             lm_q: PreTrainedModel,
@@ -34,7 +137,7 @@ class MVRLDenseModel(DenseModel):
         self.var_activation_params = var_activation_params
 
         if self.var_activation == "softplus":
-            assert "beta" in var_activation_params
+            assert var_activation_params.get("beta") is not None
             self.projection_var = nn.Sequential(
                 nn.Linear(output_dim, self.projection_dim, bias=False),
                 nn.Softplus(beta=var_activation_params["beta"])
@@ -46,18 +149,46 @@ class MVRLDenseModel(DenseModel):
         logger.info(f"projection_var: {self.projection_var}")
         logger.info(f"projection_mean: {self.projection_mean}")
 
-    def get_faiss_embed(self, means, vars):
-        raise NotImplementedError("TODO")
+    def resize_token_space(self, num_tokens):
+        # if untied, resize both the lm_q and lm_p models
+        if self.untie_encoder:
+            self.lm_q.resize_token_embeddings(num_tokens)
+            self.lm_p.resize_token_embeddings(num_tokens)
+        else:
+            # just resizing once is enough, since they're both the same models
+            self.lm_q.resize_token_embeddings(num_tokens)
+
+    def get_faiss_embed(self, mean_var, is_query):
+        means, var = mean_var
+        BZ = means.size(0)
+        D = means.size(1)
+        rep = torch.ones(BZ, 2 + 2 * D, device=means.device)
+        if is_query:
+            # 1, \sum var, mean^2, mean
+            rep[:, 1] = var.prod(1)
+            rep[:, 2:2 + D] = means ** 2
+            rep[:, 2 + D:] = means
+        else:
+            # doc prior, -1/\sum var, -1/var, (2*mu)/var
+            rep[:, 0] = -1 * (torch.log(var) + (means ** 2) / var).sum()
+            rep[:, 1] = -1 * (1 / var.prod(1))
+            rep[:, 2:2 + D] = (-1 / var)
+            rep[:, 2 + D:] = (2 * means) / var
+
+        return rep
 
     def forward(self, query: Dict[str, Tensor] = None, passage: Dict[str, Tensor] = None):
-        q_reps_mean, q_reps_var = self.encode_query(query)
-        p_reps_mean, p_reps_var = self.encode_passage(passage)
+        q_reps = self.encode_query(query)
+        p_reps = self.encode_passage(passage)
 
-        # for inference
-        if q_reps_mean is None or p_reps_mean is None:
-            return EncoderOutput(q_reps=self.get_faiss_embed(q_reps_mean, q_reps_var),
-                                 p_reps=self.get_faiss_embed(p_reps_mean, p_reps_var))
+        if q_reps is None:
+            # return query embeds
+            return EncoderOutput(q_reps=None, p_reps=self.get_faiss_embed(p_reps, is_query=False))
+        if p_reps is None:
+            return EncoderOutput(q_reps=self.get_faiss_embed(q_reps, is_query=True), p_reps=None)
 
+        q_reps_mean, q_reps_var = q_reps
+        p_reps_mean, p_reps_var = p_reps
         # for training
         if self.training:
             if self.negatives_x_device:
@@ -89,12 +220,9 @@ class MVRLDenseModel(DenseModel):
         return EncoderOutput(
             loss=loss,
             scores=scores,
-            q_reps=self.get_faiss_embed(q_reps_mean, q_reps_var),
-            p_reps=self.get_faiss_embed(q_reps_mean, q_reps_var),
+            q_reps=self.get_faiss_embed((q_reps_mean, q_reps_var), is_query=True),
+            p_reps=self.get_faiss_embed((q_reps_mean, q_reps_var), is_query=False),
         )
-
-    def compute_loss(self, scores, target):
-        raise NotImplementedError("TODO")
 
     def encode_passage(self, psg):
         if psg is None:
@@ -105,7 +233,8 @@ class MVRLDenseModel(DenseModel):
             p_reps = self.pooler(p=p_hidden)  # D * d
         else:
             p_reps = p_hidden[:, 0]
-        # TODO: what is pooler here? should we disable it?
+        # assumes VAR token is always after CLS
+        # TODO: any way to check the above?
         return self.projection_mean(p_reps), self.projection_var(p_hidden[:, 1])
 
     def encode_query(self, qry):
@@ -117,8 +246,25 @@ class MVRLDenseModel(DenseModel):
             q_reps = self.pooler(q=q_hidden)
         else:
             q_reps = q_hidden[:, 0]
-        # TODO: what is pooler here? should we disable it?
-        return self.projection_mean(q_reps), self.projection_var(q_hidden[:, 1])
 
-    def compute_similarity(self, q_reps_mean, q_reps_var=None, p_reps_mean, p_reps_var):
-        return torch.matmul(q_reps, p_reps.transpose(0, 1))
+        mean = self.projection_mean(q_reps)
+        # assumes VAR token is always after CLS
+        # TODO: any way to check the above?
+        var = self.projection_var(q_hidden[:, 1])
+        return mean, var
+
+    def compute_similarity(self, q_reps_mean, p_reps_mean, q_reps_var=None, p_reps_var=None):
+        kl = torch.zeros(q_reps_mean.size(0), p_reps_mean.size(0), device=q_reps_mean.device)
+        p = []
+        q = []
+
+        for i in range(q_reps_mean.size(0)):
+            q.append(MultivariateNormal(q_reps_mean[i, :], torch.diag(q_reps_var[i, :])))
+
+        for i in range(p_reps_mean.size(0)):
+            p.append(MultivariateNormal(p_reps_mean[i, :], torch.diag(p_reps_var[i, :])))
+
+        # Q x P
+        for (i, j) in np.ndindex(len(q), len(p)):
+            kl[i, j] = -1 * torch.distributions.kl_divergence(q[i], p[j])
+        return kl

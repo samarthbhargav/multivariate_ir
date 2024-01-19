@@ -1,12 +1,15 @@
 import logging
 import os
+from collections import defaultdict
 from itertools import repeat
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import torch
 import torch.distributed as dist
+from torch import nn
 from torch.utils.data import DataLoader
 from transformers.trainer import Trainer
+import pytrec_eval
 
 from .loss import DistributedContrastiveLoss, SimpleContrastiveLoss
 
@@ -62,6 +65,79 @@ class TevatronTrainer(Trainer):
 
     def training_step(self, *args):
         return super(TevatronTrainer, self).training_step(*args) / self._dist_loss_scale_factor
+
+    def prediction_step(
+            self,
+            model: nn.Module,
+            inputs: Dict[str, Union[torch.Tensor, Any]],
+            prediction_loss_only: bool,
+            ignore_keys: Optional[List[str]] = None,
+    ) -> Tuple[Optional[torch.Tensor], Optional[torch.Tensor], Optional[torch.Tensor]]:
+        """
+                Perform an evaluation step on `model` using `inputs`.
+
+                NOTE: in our function, the logits are NOT logits, but (ranking) scores
+
+                Subclass and override to inject custom behavior.
+
+                Args:
+                    model (`nn.Module`):
+                        The model to evaluate.
+                    inputs (`Dict[str, Union[torch.Tensor, Any]]`):
+                        The inputs and targets of the model.
+
+                        The dictionary will be unpacked before being fed to the model. Most models expect the targets under the
+                        argument `labels`. Check your model's documentation for all accepted arguments.
+                    prediction_loss_only (`bool`):
+                        Whether or not to return the loss only.
+                    ignore_keys (`List[str]`, *optional*):
+                        A list of keys in the output of your model (if it is a dictionary) that should be ignored when
+                        gathering predictions.
+
+                Return:
+                    Tuple[Optional[torch.Tensor], Optional[torch.Tensor], Optional[torch.Tensor]]: A tuple with the loss,
+                    logits and labels (each being optional).
+
+
+
+        """
+        queries, passages, labels = self._prepare_inputs(inputs)
+        with torch.no_grad():
+            out = model(query=queries, passage=passages)
+            scores = out.scores
+
+        if prediction_loss_only:
+            return out.loss, None, None
+
+        assert scores.size(0) == queries["input_ids"].size(0)
+        assert scores.size(1) == passages["input_ids"].size(0)
+
+        run = defaultdict(dict)
+        qrel = defaultdict(dict)
+        qids = []
+        doc_ids = []
+        for l in labels:
+            for _, (qid, doc_id, rel) in enumerate(l):
+                # only add QID once
+                if _ == 0:
+                    qids.append(qid)
+
+                doc_ids.append(doc_id)
+                if rel > 0:
+                    qrel[qid][doc_id] = rel
+
+        for i, qid in enumerate(qids):
+            for j, doc_id in enumerate(doc_ids):
+                run[qid][doc_id] = float(scores[i, j].cpu())
+        res = pytrec_eval.RelevanceEvaluator(qrel, ["recip_rank"]).evaluate(run)
+        ret_logits = torch.zeros(len(qids))
+        for i, qid in enumerate(qids):
+            ret_logits[i] = res[qid]["recip_rank"]
+
+        # TODO: this is super hacky
+        # we only need pass the logits with the MRR scores,
+        # return a dummy zero vector -- otherwise HF will ignore it
+        return out.loss, ret_logits, torch.zeros(len(qids))
 
 
 def split_dense_inputs(model_input: dict, chunk_size: int):
