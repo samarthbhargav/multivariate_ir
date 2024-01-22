@@ -26,7 +26,7 @@ mkdir -p ${MODEL_OUT}
 
 
 
-python -m tevatron.driver.encode \
+cmd="python -m tevatron.driver.encode \
   --output_dir=${TEMP_DIR} \
   --model_name_or_path ${MODEL_NAME} \
   --fp16 \
@@ -38,7 +38,8 @@ python -m tevatron.driver.encode \
   --encoded_save_path ${MODEL_OUT}/corpus_msmarco-passage.pkl \
   --cache_dir ${MODEL_CACHE_DIR} \
   --data_cache_dir ${DATA_CACHE_DIR} \
-  ${EXTRA_ARGS}
+  ${EXTRA_ARGS}"
+echo $cmd
 
 
 
@@ -47,7 +48,7 @@ for split in "${TEST_SETS[@]}"
 do
   echo "eval ${split}"
   # get embeds
-  python -m tevatron.driver.encode \
+  cmd="python -m tevatron.driver.encode \
   --output_dir=${TEMP_DIR} \
   --model_name_or_path ${MODEL_NAME} \
   --fp16 \
@@ -60,28 +61,33 @@ do
   --encoded_save_path ${MODEL_OUT}/${split}_msmarco-passage.pkl \
   --cache_dir ${MODEL_CACHE_DIR} \
   --data_cache_dir ${DATA_CACHE_DIR} \
-  ${EXTRA_ARGS}
+  ${EXTRA_ARGS}"
+  echo $cmd
 
 
   # obtain run
-  python -m tevatron.faiss_retriever \
+  cmd="python -m tevatron.faiss_retriever \
   --query_reps ${MODEL_OUT}/${split}_msmarco-passage.pkl \
   --passage_reps ${MODEL_OUT}/corpus_msmarco-passage.pkl \
   --depth ${TOP_K} \
   --batch_size  ${BATCH_SIZE} \
   --save_text \
-  --save_ranking_to ${RESULTS_DIR}/${split}_msmarco-passage.run
+  --save_ranking_to ${RESULTS_DIR}/${split}_msmarco-passage.run"
+  echo $cmd
 done
 
 
-python eval_run.py --input ${RESULTS_DIR}/dev_msmarco-passage.run \
+cmd="python eval_run.py --input ${RESULTS_DIR}/dev_msmarco-passage.run \
       --dataset msmarco-passage/dev/judged --metrics ${METRICS}  \
-      --output ${RESULTS_DIR}/dev_msmarco-passage.json
+      --output ${RESULTS_DIR}/dev_msmarco-passage.json"
+echo $cmd
 
-python eval_run.py --input ${RESULTS_DIR}/dl19_msmarco-passage.run \
+cmd="python eval_run.py --input ${RESULTS_DIR}/dl19_msmarco-passage.run \
       --dataset msmarco-passage/trec-dl-2019/judged --metrics ${METRICS}  \
-      --output ${RESULTS_DIR}/dl19.json
+      --output ${RESULTS_DIR}/dl19.json"
+echo $cmd
 
-python eval_run.py --input ${RESULTS_DIR}/dl20_msmarco-passage.run \
+cmd="python eval_run.py --input ${RESULTS_DIR}/dl20_msmarco-passage.run \
       --dataset msmarco-passage/trec-dl-2020/judged --metrics ${METRICS}  \
-      --output ${RESULTS_DIR}/dl20.json
+      --output ${RESULTS_DIR}/dl20.json"
+echo $cmd
