@@ -117,7 +117,8 @@ class TevatronTrainingArguments(TrainingArguments):
     gc_p_chunk_size: int = field(default=32)
 
     disable_distributed: bool = field(default=False, metadata={"help": "If set, disables distributed training"})
-    early_stopping_patience: int = field(default=0, metadata={"help": "If > 0, enables early stopping, set to patience "})
+    early_stopping_patience: int = field(default=0,
+                                         metadata={"help": "If > 0, enables early stopping, set to patience "})
     early_stopping_threshold: float = field(default=0, metadata={"help": "early stopping threshold"})
 
 
@@ -127,3 +128,5 @@ class MVRLTrainingArguments:
     var_activation: str = field(default="softplus", metadata={"help": "either softplus or logvar"})
     var_activation_param_b: float = field(default=None,
                                           metadata={"help": "the param 'beta' for var_activation=softplus"})
+    embed_during_train: bool = field(default=False, metadata={
+        "help": "if set, uses the embedding similarity instead of KL in the loss"})

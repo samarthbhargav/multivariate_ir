@@ -61,6 +61,7 @@ class MVRLDenseModel(DenseModel):
             var_activation=mvrl_args.var_activation,
             var_activation_params={"beta": mvrl_args.var_activation_param_b},
             pooler=pooler,
+            embed_during_train=mvrl_args.embed_during_train,
             negatives_x_device=train_args.negatives_x_device,
             untie_encoder=model_args.untie_encoder,
         )
@@ -123,6 +124,7 @@ class MVRLDenseModel(DenseModel):
             untie_encoder: bool = False,
             negatives_x_device: bool = False,
             var_activation="softplus",
+            embed_during_train=False,
             var_activation_params: Dict = None
     ):
         super().__init__(lm_q=lm_q, lm_p=lm_p, pooler=pooler, untie_encoder=untie_encoder,
@@ -144,6 +146,8 @@ class MVRLDenseModel(DenseModel):
             self.projection_var = nn.Linear(output_dim, self.projection_dim, bias=False)
             raise NotImplementedError("TODO")
 
+        self.embed_during_train = embed_during_train
+        logger.info(f"embed_during_train:{self.embed_during_train}")
         logger.info(f"projection_var: {self.projection_var}")
         logger.info(f"projection_mean: {self.projection_mean}")
 
@@ -255,17 +259,22 @@ class MVRLDenseModel(DenseModel):
         return mean, var
 
     def compute_similarity(self, q_reps_mean, p_reps_mean, q_reps_var=None, p_reps_var=None):
-        kl = torch.zeros(q_reps_mean.size(0), p_reps_mean.size(0), device=q_reps_mean.device)
-        p = []
-        q = []
+        if self.embed_during_train:
+            return super().compute_similarity(q_reps=self.get_faiss_embed((q_reps_mean, q_reps_var), is_query=True),
+                                              p_reps=self.get_faiss_embed((p_reps_mean, p_reps_var), is_query=False))
 
-        for i in range(q_reps_mean.size(0)):
-            q.append(MultivariateNormal(q_reps_mean[i, :], torch.diag(q_reps_var[i, :])))
+        else:
+            kl = torch.zeros(q_reps_mean.size(0), p_reps_mean.size(0), device=q_reps_mean.device)
+            p = []
+            q = []
 
-        for i in range(p_reps_mean.size(0)):
-            p.append(MultivariateNormal(p_reps_mean[i, :], torch.diag(p_reps_var[i, :])))
+            for i in range(q_reps_mean.size(0)):
+                q.append(MultivariateNormal(q_reps_mean[i, :], torch.diag(q_reps_var[i, :])))
 
-        # Q x P
-        for (i, j) in np.ndindex(len(q), len(p)):
-            kl[i, j] = -1 * torch.distributions.kl_divergence(q[i], p[j])
-        return kl
+            for i in range(p_reps_mean.size(0)):
+                p.append(MultivariateNormal(p_reps_mean[i, :], torch.diag(p_reps_var[i, :])))
+
+            # Q x P
+            for (i, j) in np.ndindex(len(q), len(p)):
+                kl[i, j] = -torch.distributions.kl_divergence(q[i], p[j])
+            return kl
