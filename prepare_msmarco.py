@@ -12,7 +12,7 @@ if __name__ == '__main__':
     torch.manual_seed(seed)
     path = sys.argv[1]
     hf_cache_dir = sys.argv[2]
-    # print("hf cache dir", hf_cache_dir)
+    print("hf cache dir", hf_cache_dir)
     print("result root ", path)
 
     os.makedirs(path, exist_ok=True)
@@ -20,7 +20,7 @@ if __name__ == '__main__':
         "Tevatron/msmarco-passage",
         "default",
         token=True,
-        # cache_dir=hf_cache_dir
+        cache_dir=hf_cache_dir
     )
 
     # split the training set into training/validation
