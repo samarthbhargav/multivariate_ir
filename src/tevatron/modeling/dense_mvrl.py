@@ -62,6 +62,7 @@ class MVRLDenseModel(DenseModel):
             var_activation_params={"beta": mvrl_args.var_activation_param_b},
             pooler=pooler,
             embed_during_train=mvrl_args.embed_during_train,
+            embed_formulation=mvrl_args.embed_formulation,
             negatives_x_device=train_args.negatives_x_device,
             untie_encoder=model_args.untie_encoder,
         )
@@ -111,6 +112,8 @@ class MVRLDenseModel(DenseModel):
                     pooler=pooler,
                     untie_encoder=model_args.untie_encoder,
                     output_dim=model_args.projection_in_dim,
+                    embed_during_train=mvrl_args.embed_during_train,
+                    embed_formulation=mvrl_args.embed_formulation,
                     var_activation=mvrl_args.var_activation,
                     var_activation_params={"beta": mvrl_args.var_activation_param_b})
         return model
@@ -125,6 +128,7 @@ class MVRLDenseModel(DenseModel):
             negatives_x_device: bool = False,
             var_activation="softplus",
             embed_during_train=False,
+            embed_formulation="original",
             var_activation_params: Dict = None
     ):
         super().__init__(lm_q=lm_q, lm_p=lm_p, pooler=pooler, untie_encoder=untie_encoder,
@@ -147,7 +151,9 @@ class MVRLDenseModel(DenseModel):
             raise NotImplementedError("TODO")
 
         self.embed_during_train = embed_during_train
-        logger.info(f"embed_during_train:{self.embed_during_train}")
+        self.embed_formulation = embed_formulation
+        assert self.embed_formulation in {"original", "updated"}
+        logger.info(f"embed_during_train:{self.embed_during_train}, embed_formulation: {self.embed_formulation}")
         logger.info(f"projection_var: {self.projection_var}")
         logger.info(f"projection_mean: {self.projection_mean}")
 
@@ -164,23 +170,40 @@ class MVRLDenseModel(DenseModel):
         means, var = mean_var
         BZ = means.size(0)
         D = means.size(1)
-        rep = torch.ones(BZ, 2 + 2 * D, device=means.device)
 
-        if is_query:
-            # 1, \sum var, mean^2, mean
-            # rep[:, 1] = (var + eps).prod(1)
-            rep[:, 1] = var.prod(1)
-            rep[:, 2:2 + D] = means ** 2
-            rep[:, 2 + D:] = means
+        if self.embed_formulation == "original":
+            rep = torch.ones(BZ, 2 + 2 * D, device=means.device)
+
+            if is_query:
+                # 1, \sum var, mean^2, mean
+                # rep[:, 1] = (var + eps).prod(1)
+                rep[:, 1] = var.prod(1)
+                rep[:, 2:2 + D] = means ** 2
+                rep[:, 2 + D:] = means
+            else:
+                # doc prior, -1/\sum var, -1/var, (2*mu)/var
+                rep[:, 0] = -1 * (torch.log(var) + (means ** 2) / var).sum()
+                rep[:, 1] = (-1 / (var.prod(1) + eps))
+                rep[:, 2:2 + D] = (-1 / var)
+                rep[:, 2 + D:] = (2 * means) / var
+
+            assert not torch.isinf(rep).any() and not torch.isnan(rep).any(), "obtained infs in representation"
+            return rep
         else:
-            # doc prior, -1/\sum var, -1/var, (2*mu)/var
-            rep[:, 0] = -1 * (torch.log(var) + (means ** 2) / var).sum()
-            rep[:, 1] = (-1 / (var.prod(1) + eps))
-            rep[:, 2:2 + D] = (-1 / var)
-            rep[:, 2 + D:] = (2 * means) / var
+            rep = torch.zeros(BZ, 1 + 3 * D)
+            if is_query:
+                rep[:, 0] = 1
+                rep[:, 1:D + 1] = var
+                rep[:, D + 1:2 * D + 1] = means ** 2
+                rep[:, 2 * D + 1:] = means
+            else:
+                rep[:, 0] = torch.log(var).sum()
+                rep[:, 1:D + 1] = 1 / var
+                rep[:, D + 1:2 * D + 1] = (1 / var)
+                rep[:, 2 * D + 1:] = (-2 * means) / var
 
-        assert not torch.isinf(rep).any() and not torch.isnan(rep).any(), "obtained infs in representation"
-        return rep
+            assert not torch.isinf(rep).any() and not torch.isnan(rep).any(), "obtained infs in representation"
+            return rep
 
     def forward(self, query: Dict[str, Tensor] = None, passage: Dict[str, Tensor] = None):
         q_reps = self.encode_query(query)
@@ -278,3 +301,13 @@ class MVRLDenseModel(DenseModel):
             for (i, j) in np.ndindex(len(q), len(p)):
                 kl[i, j] = -torch.distributions.kl_divergence(q[i], p[j])
             return kl
+
+    def save(self, output_dir: str):
+        super().save(output_dir)
+        torch.save(self.projection_mean.state_dict(), os.path.join(output_dir, "projection_mean"))
+        torch.save(self.projection_var.state_dict(), os.path.join(output_dir, "projection_var"))
+
+    def load_from(self, input_dir: str):
+        super().load_from(input_dir)
+        self.projection_mean.load_state_dict(torch.load(os.path.join(input_dir, "projection_mean"), map_location="cpu"))
+        self.projection_var.load_state_dict(torch.load(os.path.join(input_dir, "projection_var"), map_location="cpu"))

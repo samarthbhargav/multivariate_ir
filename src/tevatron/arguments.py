@@ -130,3 +130,5 @@ class MVRLTrainingArguments:
                                           metadata={"help": "the param 'beta' for var_activation=softplus"})
     embed_during_train: bool = field(default=False, metadata={
         "help": "if set, uses the embedding similarity instead of KL in the loss"})
+    embed_formulation: str = field(default="original",
+                                   metadata={"help": "whether to use the 'original' or 'updated' formulation"})
