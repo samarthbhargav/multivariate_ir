@@ -12,7 +12,7 @@ if __name__ == '__main__':
     torch.manual_seed(seed)
     path = sys.argv[1]
     hf_cache_dir = sys.argv[2]
-    print("hf cache dir", hf_cache_dir)
+    # print("hf cache dir", hf_cache_dir)
     print("result root ", path)
 
     os.makedirs(path, exist_ok=True)
@@ -20,7 +20,7 @@ if __name__ == '__main__':
         "Tevatron/msmarco-passage",
         "default",
         token=True,
-        cache_dir=hf_cache_dir
+        # cache_dir=hf_cache_dir
     )
 
     # split the training set into training/validation
@@ -45,4 +45,12 @@ if __name__ == '__main__':
         os.path.join(path, "msmarco-small/train"))
     n = 5
     splits["test"].train_test_split(test_size=n / len(splits["test"]))["test"].save_to_disk(
-        os.path.join(path, "msmarco-small/train"))
+        os.path.join(path, "msmarco-small/validation"))
+
+    n = 10000
+    splits["train"].train_test_split(test_size=n / len(splits["train"]))["test"].save_to_disk(
+        os.path.join(path, "msmarco-med/train"))
+
+    # save the entire validation as is
+    splits["test"].save_to_disk(
+        os.path.join(path, "msmarco-med/validation"))
