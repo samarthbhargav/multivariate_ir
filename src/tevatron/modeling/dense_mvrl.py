@@ -190,7 +190,7 @@ class MVRLDenseModel(DenseModel):
             assert not torch.isinf(rep).any() and not torch.isnan(rep).any(), "obtained infs in representation"
             return rep
         else:
-            rep = torch.zeros(BZ, 1 + 3 * D)
+            rep = torch.zeros(BZ, 1 + 3 * D, device=means.device)
             if is_query:
                 rep[:, 0] = 1
                 rep[:, 1:D + 1] = var
