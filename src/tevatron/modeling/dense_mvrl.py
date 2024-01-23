@@ -309,5 +309,9 @@ class MVRLDenseModel(DenseModel):
 
     def load_from(self, input_dir: str):
         super().load_from(input_dir)
-        self.projection_mean.load_state_dict(torch.load(os.path.join(input_dir, "projection_mean"), map_location="cpu"))
-        self.projection_var.load_state_dict(torch.load(os.path.join(input_dir, "projection_var"), map_location="cpu"))
+        mean_path = os.path.join(input_dir, "projection_mean")
+        logger.info(f"loading projection_mean from {mean_path}")
+        self.projection_mean.load_state_dict(torch.load(mean_path, map_location="cpu"))
+        var_path = os.path.join(input_dir, "projection_var")
+        logger.info(f"loading projection_var from {var_path}")
+        self.projection_var.load_state_dict(torch.load(var_path, map_location="cpu"))
