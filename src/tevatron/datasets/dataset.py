@@ -87,7 +87,10 @@ class HFQueryDataset:
                 use_auth_token=True,
             )[data_args.dataset_split]
         except:
-            self.dataset = load_from_disk(data_args.encode_in_path)
+            if isinstance(data_args.encode_in_path, list) and len(data_args.encode_in_path) == 1:
+                self.dataset = load_from_disk(data_args.encode_in_path[0])
+            else:
+                raise NotImplementedError()
 
         self.preprocessor = (
             PROCESSOR_INFO[data_args.dataset_name][1]
@@ -130,8 +133,11 @@ class HFCorpusDataset:
                 use_auth_token=True,
             )[data_args.dataset_split]
         except:
-            self.dataset = load_from_disk(data_args.encode_in_path)
-            
+            if isinstance(data_args.encode_in_path, list) and len(data_args.encode_in_path) == 1:
+                self.dataset = load_from_disk(data_args.encode_in_path[0])
+            else:
+                raise NotImplementedError()
+
         script_prefix = data_args.dataset_name
         if script_prefix.endswith("-corpus"):
             script_prefix = script_prefix[:-7]
