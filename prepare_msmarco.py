@@ -67,7 +67,7 @@ if __name__ == '__main__':
     print(len(doc_ids), "positives")
 
     # sample remaining docs from the corpus
-    corpus = datasets.load_dataset("Tevatron/msmarco-passage-corpus")
+    corpus = datasets.load_dataset("Tevatron/msmarco-passage-corpus", cache_dir=hf_cache_dir)
     oth_corpus = corpus.filter(lambda _: _["docid"] not in doc_ids).shuffle()["train"].select(list(range(n_docs - len(doc_ids))))
     pos_corpus = corpus.filter(lambda _: _["docid"] in doc_ids)
     corpus_subset = datasets.concatenate_datasets([pos_corpus["train"], oth_corpus])
