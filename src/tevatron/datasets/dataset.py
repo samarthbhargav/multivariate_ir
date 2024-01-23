@@ -78,20 +78,13 @@ class HFQueryDataset:
         data_files = data_args.encode_in_path
         if data_files:
             data_files = {data_args.dataset_split: data_files}
-        try:
-            self.dataset = load_dataset(
-                data_args.dataset_name,
-                data_args.dataset_language,
-                data_files=data_files,
-                cache_dir=cache_dir,
-                use_auth_token=True,
-            )[data_args.dataset_split]
-        except:
-            if isinstance(data_args.encode_in_path, list) and len(data_args.encode_in_path) == 1:
-                self.dataset = load_from_disk(data_args.encode_in_path[0])
-            else:
-                raise NotImplementedError()
-
+        self.dataset = load_dataset(
+            data_args.dataset_name,
+            data_args.dataset_language,
+            data_files=data_files,
+            cache_dir=cache_dir,
+            use_auth_token=True,
+        )[data_args.dataset_split]
         self.preprocessor = (
             PROCESSOR_INFO[data_args.dataset_name][1]
             if data_args.dataset_name in PROCESSOR_INFO
@@ -124,20 +117,13 @@ class HFCorpusDataset:
         data_files = data_args.encode_in_path
         if data_files:
             data_files = {data_args.dataset_split: data_files}
-        try:
-            self.dataset = load_dataset(
-                data_args.dataset_name,
-                data_args.dataset_language,
-                data_files=data_files,
-                cache_dir=cache_dir,
-                use_auth_token=True,
-            )[data_args.dataset_split]
-        except:
-            if isinstance(data_args.encode_in_path, list) and len(data_args.encode_in_path) == 1:
-                self.dataset = load_from_disk(data_args.encode_in_path[0])
-            else:
-                raise NotImplementedError()
-
+        self.dataset = load_dataset(
+            data_args.dataset_name,
+            data_args.dataset_language,
+            data_files=data_files,
+            cache_dir=cache_dir,
+            use_auth_token=True,
+        )[data_args.dataset_split]
         script_prefix = data_args.dataset_name
         if script_prefix.endswith("-corpus"):
             script_prefix = script_prefix[:-7]

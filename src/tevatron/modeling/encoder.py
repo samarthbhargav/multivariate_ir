@@ -237,12 +237,14 @@ class EncoderModel(nn.Module):
             self.pooler.save_pooler(output_dir)
 
     def load_from(self, input_dir: str):
-        ## TODO: maplocation is cpu, but we have to move to the correct device!
         if self.untie_encoder:
-            self.lm_q = self.TRANSFORMER_CLS.from_pretrained(os.path.join(input_dir, "query_model"))
-            self.lm_p = self.TRANSFORMER_CLS.from_pretrained(os.path.join(input_dir, "passage_model"))
+            state_dict_q = self.TRANSFORMER_CLS.from_pretrained(os.path.join(input_dir, "query_model")).state_dict()
+            self.lm_q.load_state_dict(state_dict_q)
+            state_dict_p = self.TRANSFORMER_CLS.from_pretrained(os.path.join(input_dir, "passage_model")).state_dict()
+            self.lm_p.load_state_dict(state_dict_p)
         else:
-            self.lm_q = self.TRANSFORMER_CLS.from_pretrained(input_dir)
+            state_dict = self.TRANSFORMER_CLS.from_pretrained(input_dir)
+            self.lm_q.load_state_dict(state_dict)
             self.lm_p = self.lm_q
         if self.pooler:
             self.pooler.load_pooler(input_dir)
