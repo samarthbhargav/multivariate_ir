@@ -48,9 +48,28 @@ if __name__ == '__main__':
         os.path.join(path, "msmarco-small/validation"))
 
     n = 10000
-    splits["train"].train_test_split(test_size=n / len(splits["train"]))["test"].save_to_disk(
+    med_train = splits["train"].train_test_split(test_size=n / len(splits["train"]))["test"]
+    med_train.save_to_disk(
         os.path.join(path, "msmarco-med/train"))
 
     # save the entire validation as is
-    splits["test"].save_to_disk(
+    med_val = splits["test"]
+    med_val.save_to_disk(
         os.path.join(path, "msmarco-med/validation"))
+
+    n_docs = 50000
+    doc_ids = set()
+    for s in [med_train, med_val]:
+        for q in s:
+            for doc in q["positive_passages"]:
+                doc_ids.add(doc["docid"])
+
+    print(len(doc_ids), "positives")
+
+    # sample remaining docs from the corpus
+    corpus = datasets.load_dataset("Tevatron/msmarco-passage-corpus")
+    oth_corpus = corpus.filter(lambda _: _["docid"] not in doc_ids).shuffle()["train"].select(list(range(n_docs - len(doc_ids))))
+    pos_corpus = corpus.filter(lambda _: _["docid"] in doc_ids)
+    corpus_subset = datasets.concatenate_datasets([pos_corpus["train"], oth_corpus])
+    print(corpus_subset)
+    corpus_subset.save_to_disk(os.path.join(path, "msmarco-med/corpus"))
