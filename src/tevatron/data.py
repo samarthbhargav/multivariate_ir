@@ -135,7 +135,7 @@ class EncodeDataset(Dataset):
             max_length=self.max_len,
             truncation="only_first",
             padding=False,
-            return_token_type_ids=False,
+            return_token_type_ids=False
         )
         return text_id, encoded_text
 

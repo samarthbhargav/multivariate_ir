@@ -78,13 +78,17 @@ class HFQueryDataset:
         data_files = data_args.encode_in_path
         if data_files:
             data_files = {data_args.dataset_split: data_files}
-        self.dataset = load_dataset(
-            data_args.dataset_name,
-            data_args.dataset_language,
-            data_files=data_files,
-            cache_dir=cache_dir,
-            use_auth_token=True,
-        )[data_args.dataset_split]
+        try:
+            self.dataset = load_dataset(
+                data_args.dataset_name,
+                data_args.dataset_language,
+                data_files=data_files,
+                cache_dir=cache_dir,
+                use_auth_token=True,
+            )[data_args.dataset_split]
+        except:
+            self.dataset = load_from_disk(data_args.encode_in_path)
+
         self.preprocessor = (
             PROCESSOR_INFO[data_args.dataset_name][1]
             if data_args.dataset_name in PROCESSOR_INFO
@@ -107,6 +111,7 @@ class HFQueryDataset:
                 num_proc=self.proc_num,
                 remove_columns=self.dataset.column_names,
                 desc="Running tokenization",
+                load_from_cache_file=False,
             )
         return self.dataset
 
@@ -149,5 +154,6 @@ class HFCorpusDataset:
                 num_proc=self.proc_num,
                 remove_columns=self.dataset.column_names,
                 desc="Running tokenization",
+                load_from_cache_file=False,
             )
         return self.dataset
