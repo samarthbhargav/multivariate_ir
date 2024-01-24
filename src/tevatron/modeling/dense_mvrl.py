@@ -118,6 +118,7 @@ class MVRLDenseModel(DenseModel):
                     var_activation_params={"beta": mvrl_args.var_activation_param_b})
 
         mean_path = os.path.join(model_name_or_path, "projection_mean")
+        logger.info(f"loading projection_mean from {mean_path}")
         model.projection_mean.load_state_dict(torch.load(mean_path, map_location="cpu"))
         var_path = os.path.join(model_name_or_path, "projection_var")
         logger.info(f"loading projection_var from {var_path}")
