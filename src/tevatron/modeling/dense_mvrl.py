@@ -61,6 +61,8 @@ class MVRLDenseModel(DenseModel):
             var_activation=mvrl_args.var_activation,
             var_activation_params={"beta": mvrl_args.var_activation_param_b},
             pooler=pooler,
+            embed_during_train=mvrl_args.embed_during_train,
+            embed_formulation=mvrl_args.embed_formulation,
             negatives_x_device=train_args.negatives_x_device,
             untie_encoder=model_args.untie_encoder,
         )
@@ -74,8 +76,6 @@ class MVRLDenseModel(DenseModel):
             mvrl_args: MVRLTrainingArguments,
             **hf_kwargs,
     ):
-        # load local
-        untie_encoder = True
         if os.path.isdir(model_name_or_path):
             _qry_model_path = os.path.join(model_name_or_path, "query_model")
             _psg_model_path = os.path.join(model_name_or_path, "passage_model")
@@ -110,10 +110,19 @@ class MVRLDenseModel(DenseModel):
         model = cls(lm_q=lm_q,
                     lm_p=lm_p,
                     pooler=pooler,
-                    untie_encoder=untie_encoder,
+                    untie_encoder=model_args.untie_encoder,
                     output_dim=model_args.projection_in_dim,
+                    embed_during_train=mvrl_args.embed_during_train,
+                    embed_formulation=mvrl_args.embed_formulation,
                     var_activation=mvrl_args.var_activation,
                     var_activation_params={"beta": mvrl_args.var_activation_param_b})
+
+        mean_path = os.path.join(model_name_or_path, "projection_mean")
+        logger.info(f"loading projection_mean from {mean_path}")
+        model.projection_mean.load_state_dict(torch.load(mean_path, map_location="cpu"))
+        var_path = os.path.join(model_name_or_path, "projection_var")
+        logger.info(f"loading projection_var from {var_path}")
+        model.projection_var.load_state_dict(torch.load(var_path, map_location="cpu"))
         return model
 
     def __init__(
@@ -125,6 +134,8 @@ class MVRLDenseModel(DenseModel):
             untie_encoder: bool = False,
             negatives_x_device: bool = False,
             var_activation="softplus",
+            embed_during_train=False,
+            embed_formulation="original",
             var_activation_params: Dict = None
     ):
         super().__init__(lm_q=lm_q, lm_p=lm_p, pooler=pooler, untie_encoder=untie_encoder,
@@ -146,6 +157,10 @@ class MVRLDenseModel(DenseModel):
             self.projection_var = nn.Linear(output_dim, self.projection_dim, bias=False)
             raise NotImplementedError("TODO")
 
+        self.embed_during_train = embed_during_train
+        self.embed_formulation = embed_formulation
+        assert self.embed_formulation in {"original", "updated"}
+        logger.info(f"embed_during_train:{self.embed_during_train}, embed_formulation: {self.embed_formulation}")
         logger.info(f"projection_var: {self.projection_var}")
         logger.info(f"projection_mean: {self.projection_mean}")
 
@@ -158,31 +173,50 @@ class MVRLDenseModel(DenseModel):
             # just resizing once is enough, since they're both the same models
             self.lm_q.resize_token_embeddings(num_tokens)
 
-    def get_faiss_embed(self, mean_var, is_query):
+    def get_faiss_embed(self, mean_var, is_query, eps=1e-9):
         means, var = mean_var
         BZ = means.size(0)
         D = means.size(1)
-        rep = torch.ones(BZ, 2 + 2 * D, device=means.device)
-        if is_query:
-            # 1, \sum var, mean^2, mean
-            rep[:, 1] = var.prod(1)
-            rep[:, 2:2 + D] = means ** 2
-            rep[:, 2 + D:] = means
-        else:
-            # doc prior, -1/\sum var, -1/var, (2*mu)/var
-            rep[:, 0] = -1 * (torch.log(var) + (means ** 2) / var).sum()
-            rep[:, 1] = -1 * (1 / var.prod(1))
-            rep[:, 2:2 + D] = (-1 / var)
-            rep[:, 2 + D:] = (2 * means) / var
 
-        return rep
+        if self.embed_formulation == "original":
+            rep = torch.ones(BZ, 2 + 2 * D, device=means.device)
+
+            if is_query:
+                # 1, \sum var, mean^2, mean
+                # rep[:, 1] = (var + eps).prod(1)
+                rep[:, 1] = var.prod(1)
+                rep[:, 2:2 + D] = means ** 2
+                rep[:, 2 + D:] = means
+            else:
+                # doc prior, -1/\sum var, -1/var, (2*mu)/var
+                rep[:, 0] = -1 * (torch.log(var) + (means ** 2) / var).sum()
+                rep[:, 1] = (-1 / (var.prod(1) + eps))
+                rep[:, 2:2 + D] = (-1 / var)
+                rep[:, 2 + D:] = (2 * means) / var
+
+            assert not torch.isinf(rep).any() and not torch.isnan(rep).any(), "obtained infs in representation"
+            return rep
+        else:
+            rep = torch.zeros(BZ, 1 + 3 * D, device=means.device)
+            if is_query:
+                rep[:, 0] = 1
+                rep[:, 1:D + 1] = var
+                rep[:, D + 1:2 * D + 1] = means ** 2
+                rep[:, 2 * D + 1:] = means
+            else:
+                rep[:, 0] = torch.log(var).sum()
+                rep[:, 1:D + 1] = 1 / var
+                rep[:, D + 1:2 * D + 1] = (1 / var)
+                rep[:, 2 * D + 1:] = (-2 * means) / var
+
+            assert not torch.isinf(rep).any() and not torch.isnan(rep).any(), "obtained infs in representation"
+            return rep
 
     def forward(self, query: Dict[str, Tensor] = None, passage: Dict[str, Tensor] = None):
         q_reps = self.encode_query(query)
         p_reps = self.encode_passage(passage)
 
         if q_reps is None:
-            # return query embeds
             return EncoderOutput(q_reps=None, p_reps=self.get_faiss_embed(p_reps, is_query=False))
         if p_reps is None:
             return EncoderOutput(q_reps=self.get_faiss_embed(q_reps, is_query=True), p_reps=None)
@@ -254,17 +288,36 @@ class MVRLDenseModel(DenseModel):
         return mean, var
 
     def compute_similarity(self, q_reps_mean, p_reps_mean, q_reps_var=None, p_reps_var=None):
-        kl = torch.zeros(q_reps_mean.size(0), p_reps_mean.size(0), device=q_reps_mean.device)
-        p = []
-        q = []
+        if self.embed_during_train:
+            return super().compute_similarity(q_reps=self.get_faiss_embed((q_reps_mean, q_reps_var), is_query=True),
+                                              p_reps=self.get_faiss_embed((p_reps_mean, p_reps_var), is_query=False))
 
-        for i in range(q_reps_mean.size(0)):
-            q.append(MultivariateNormal(q_reps_mean[i, :], torch.diag(q_reps_var[i, :])))
+        else:
+            kl = torch.zeros(q_reps_mean.size(0), p_reps_mean.size(0), device=q_reps_mean.device)
+            p = []
+            q = []
 
-        for i in range(p_reps_mean.size(0)):
-            p.append(MultivariateNormal(p_reps_mean[i, :], torch.diag(p_reps_var[i, :])))
+            for i in range(q_reps_mean.size(0)):
+                q.append(MultivariateNormal(q_reps_mean[i, :], torch.diag(q_reps_var[i, :])))
 
-        # Q x P
-        for (i, j) in np.ndindex(len(q), len(p)):
-            kl[i, j] = -1 * torch.distributions.kl_divergence(q[i], p[j])
-        return kl
+            for i in range(p_reps_mean.size(0)):
+                p.append(MultivariateNormal(p_reps_mean[i, :], torch.diag(p_reps_var[i, :])))
+
+            # Q x P
+            for (i, j) in np.ndindex(len(q), len(p)):
+                kl[i, j] = -torch.distributions.kl_divergence(q[i], p[j])
+            return kl
+
+    def save(self, output_dir: str):
+        super().save(output_dir)
+        torch.save(self.projection_mean.state_dict(), os.path.join(output_dir, "projection_mean"))
+        torch.save(self.projection_var.state_dict(), os.path.join(output_dir, "projection_var"))
+
+    def load_from(self, input_dir: str):
+        super().load_from(input_dir)
+        mean_path = os.path.join(input_dir, "projection_mean")
+        logger.info(f"loading projection_mean from {mean_path}")
+        self.projection_mean.load_state_dict(torch.load(mean_path, map_location="cpu"))
+        var_path = os.path.join(input_dir, "projection_var")
+        logger.info(f"loading projection_var from {var_path}")
+        self.projection_var.load_state_dict(torch.load(var_path, map_location="cpu"))

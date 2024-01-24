@@ -2,3 +2,9 @@
 .python-version
 __pycache__/
 *.egg-info/
+
+
+.ipynb_checkpoints/
+msmarco-med/
+msmarco-small/
+msmarco/

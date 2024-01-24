@@ -41,8 +41,56 @@ if __name__ == '__main__':
 
     # create a tiny dataset for quick testing
     n = 20
-    splits["train"].train_test_split(test_size=n / len(splits["train"]))["test"].save_to_disk(
+    sm_train = splits["train"].train_test_split(test_size=n / len(splits["train"]))["test"]
+    sm_train.save_to_disk(
         os.path.join(path, "msmarco-small/train"))
     n = 5
-    splits["test"].train_test_split(test_size=n / len(splits["test"]))["test"].save_to_disk(
-        os.path.join(path, "msmarco-small/train"))
+    sm_val = splits["test"].train_test_split(test_size=n / len(splits["test"]))["test"]
+    sm_val.save_to_disk(
+        os.path.join(path, "msmarco-small/validation"))
+
+    n_docs = 100
+    doc_ids = set()
+    for s in [sm_train, sm_val]:
+        for q in s:
+            for doc in q["positive_passages"]:
+                doc_ids.add(doc["docid"])
+
+    print(len(doc_ids), "positives")
+    corpus = datasets.load_dataset("Tevatron/msmarco-passage-corpus",
+                                   cache_dir=hf_cache_dir)
+
+    oth_corpus = corpus.filter(lambda _: _["docid"] not in doc_ids).shuffle()["train"].select(
+        list(range(n_docs - len(doc_ids))))
+    pos_corpus = corpus.filter(lambda _: _["docid"] in doc_ids)
+    corpus_subset = datasets.concatenate_datasets([pos_corpus["train"], oth_corpus])
+    print(corpus_subset)
+    corpus_subset.save_to_disk(os.path.join(path, "msmarco-small/corpus"))
+
+    n = 10000
+    med_train = splits["train"].train_test_split(test_size=n / len(splits["train"]))["test"]
+    med_train.save_to_disk(
+        os.path.join(path, "msmarco-med/train"))
+
+    # save the entire validation as is
+    med_val = splits["test"]
+    med_val.save_to_disk(
+        os.path.join(path, "msmarco-med/validation"))
+
+    n_docs = 50000
+    doc_ids = set()
+    for s in [med_train, med_val]:
+        for q in s:
+            for doc in q["positive_passages"]:
+                doc_ids.add(doc["docid"])
+
+    print(len(doc_ids), "positives")
+
+    # sample remaining docs from the corpus
+
+    oth_corpus = corpus.filter(lambda _: _["docid"] not in doc_ids).shuffle()["train"].select(
+        list(range(n_docs - len(doc_ids))))
+    pos_corpus = corpus.filter(lambda _: _["docid"] in doc_ids)
+    corpus_subset = datasets.concatenate_datasets([pos_corpus["train"], oth_corpus])
+    print(corpus_subset)
+    corpus_subset.save_to_disk(os.path.join(path, "msmarco-med/corpus"))

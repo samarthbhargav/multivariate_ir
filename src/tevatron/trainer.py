@@ -34,6 +34,10 @@ class TevatronTrainer(Trainer):
         logger.info("Saving model checkpoint to %s", output_dir)
         self.model.save(output_dir)
 
+    def _load_best_model(self):
+        logger.info(f"Loading best model from {self.state.best_model_checkpoint} (score: {self.state.best_metric}).")
+        self.model.load_from(self.state.best_model_checkpoint)
+
     def _prepare_inputs(
             self, inputs: Tuple[Dict[str, Union[torch.Tensor, Any]], ...]
     ) -> List[Dict[str, Union[torch.Tensor, Any]]]:

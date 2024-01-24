@@ -2,6 +2,7 @@ import json
 import logging
 import os
 import sys
+import pandas as pd
 
 import torch
 from transformers import AutoConfig, AutoTokenizer, HfArgumentParser, set_seed, EvalPrediction, EarlyStoppingCallback
@@ -158,16 +159,26 @@ def main():
         data_collator=QPCollator(tokenizer, max_p_len=data_args.p_max_len, max_q_len=data_args.q_max_len),
     )
     train_dataset.trainer = trainer
-    val_dataset.trainer = trainer
+    if val_dataset:
+        val_dataset.trainer = trainer
 
     trainer.train()
-    eval_result = trainer.evaluate(eval_dataset=val_dataset)
+
+    if val_dataset:
+        eval_result = trainer.evaluate(eval_dataset=val_dataset)
+    else:
+        eval_result = {}
+
+    logger.info(f"evaluation result: {eval_result}")
     trainer.save_model()
+
+    pd.DataFrame(trainer.state.log_history).to_csv(os.path.join(training_args.output_dir, "trainer_state.csv"))
 
     with open(os.path.join(training_args.output_dir, "eval_result.json"), "w") as writer:
         json.dump(eval_result, writer)
 
     if trainer.is_world_process_zero():
+        logger.info(f"saving tokenizer to {training_args.output_dir}")
         tokenizer.save_pretrained(training_args.output_dir)
 
     if not training_args.disable_distributed:

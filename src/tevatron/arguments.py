@@ -54,6 +54,8 @@ class DataArguments:
     )
 
     encode_in_path: List[str] = field(default=None, metadata={"help": "Path to data to encode"})
+    hf_disk_dataset: str = field(default=None,
+                                 metadata={"help": "Path to dataset (loaded using datasets.load_from_disk)"})
     encoded_save_path: str = field(default=None, metadata={"help": "where to save the encode"})
     encode_is_qry: bool = field(default=False)
     encode_num_shard: int = field(default=1)
@@ -117,7 +119,8 @@ class TevatronTrainingArguments(TrainingArguments):
     gc_p_chunk_size: int = field(default=32)
 
     disable_distributed: bool = field(default=False, metadata={"help": "If set, disables distributed training"})
-    early_stopping_patience: int = field(default=0, metadata={"help": "If > 0, enables early stopping, set to patience "})
+    early_stopping_patience: int = field(default=0,
+                                         metadata={"help": "If > 0, enables early stopping, set to patience "})
     early_stopping_threshold: float = field(default=0, metadata={"help": "early stopping threshold"})
 
 
@@ -127,3 +130,7 @@ class MVRLTrainingArguments:
     var_activation: str = field(default="softplus", metadata={"help": "either softplus or logvar"})
     var_activation_param_b: float = field(default=None,
                                           metadata={"help": "the param 'beta' for var_activation=softplus"})
+    embed_during_train: bool = field(default=False, metadata={
+        "help": "if set, uses the embedding similarity instead of KL in the loss"})
+    embed_formulation: str = field(default="original",
+                                   metadata={"help": "whether to use the 'original' or 'updated' formulation"})
