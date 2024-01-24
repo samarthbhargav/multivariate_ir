@@ -210,7 +210,6 @@ class MVRLDenseModel(DenseModel):
         p_reps = self.encode_passage(passage)
 
         if q_reps is None:
-            # return query embeds
             return EncoderOutput(q_reps=None, p_reps=self.get_faiss_embed(p_reps, is_query=False))
         if p_reps is None:
             return EncoderOutput(q_reps=self.get_faiss_embed(q_reps, is_query=True), p_reps=None)

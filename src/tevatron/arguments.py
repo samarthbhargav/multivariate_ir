@@ -54,6 +54,8 @@ class DataArguments:
     )
 
     encode_in_path: List[str] = field(default=None, metadata={"help": "Path to data to encode"})
+    hf_disk_dataset: str = field(default=None,
+                                 metadata={"help": "Path to dataset (loaded using datasets.load_from_disk)"})
     encoded_save_path: str = field(default=None, metadata={"help": "where to save the encode"})
     encode_is_qry: bool = field(default=False)
     encode_num_shard: int = field(default=1)

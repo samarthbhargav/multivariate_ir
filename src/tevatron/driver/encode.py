@@ -115,7 +115,6 @@ def main():
                     model_output: EncoderOutput = model(passage=batch)
                     encoded.append(model_output.p_reps.cpu().detach().numpy())
     encoded = np.concatenate(encoded)
-
     with open(data_args.encoded_save_path, "wb") as f:
         pickle.dump((encoded, lookup_indices), f)
 

@@ -178,6 +178,7 @@ def main():
         json.dump(eval_result, writer)
 
     if trainer.is_world_process_zero():
+        logger.info(f"saving tokenizer to {training_args.output_dir}")
         tokenizer.save_pretrained(training_args.output_dir)
 
     if not training_args.disable_distributed:
