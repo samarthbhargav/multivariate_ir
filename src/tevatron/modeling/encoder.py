@@ -243,7 +243,7 @@ class EncoderModel(nn.Module):
             state_dict_p = self.TRANSFORMER_CLS.from_pretrained(os.path.join(input_dir, "passage_model")).state_dict()
             self.lm_p.load_state_dict(state_dict_p)
         else:
-            state_dict = self.TRANSFORMER_CLS.from_pretrained(input_dir)
+            state_dict = self.TRANSFORMER_CLS.from_pretrained(input_dir).state_dict()
             self.lm_q.load_state_dict(state_dict)
             self.lm_p = self.lm_q
         if self.pooler:

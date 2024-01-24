@@ -132,7 +132,6 @@ class HFCorpusDataset:
                 cache_dir=cache_dir,
                 use_auth_token=True,
             )[data_args.dataset_split]
-        self.dataset = load_from_disk(data_args.encode_in_path[0])
         script_prefix = data_args.dataset_name
         if script_prefix.endswith("-corpus"):
             script_prefix = script_prefix[:-7]
