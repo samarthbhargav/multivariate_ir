@@ -245,7 +245,6 @@ class MVRLDenseModel(DenseModel):
 
             target = torch.arange(scores.size(0), device=scores.device, dtype=torch.long)
             target = target * (p_reps_mean.size(0) // q_reps_mean.size(0))
-            # print(scores, target)
             loss = self.compute_loss(scores, target)
             if self.negatives_x_device:
                 loss = loss * self.world_size  # counter average weight reduction
@@ -326,9 +325,6 @@ class MVRLDenseModel(DenseModel):
 
             kl = -0.5 * (log_var_diff + tr_prod + diff_div)
             return kl
-
-    def doc_prior(self, mean: torch.Tensor, var: torch.Tensor) -> torch.Tensor:
-        return -torch.log(var).sum(1) - (mean ** 2 / var).sum(1)
 
     def save(self, output_dir: str):
         super().save(output_dir)

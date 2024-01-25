@@ -94,7 +94,6 @@ class EncoderModel(nn.Module):
             target = torch.arange(scores.size(0), device=scores.device, dtype=torch.long)
             target = target * (p_reps.size(0) // q_reps.size(0))
 
-            # print(scores, target)
             loss = self.compute_loss(scores, target)
             if self.negatives_x_device:
                 loss = loss * self.world_size  # counter average weight reduction
