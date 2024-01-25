@@ -3,41 +3,23 @@ import pytrec_eval
 from collections import defaultdict
 import json
 import numpy as np
-import pickle as pkl
 import argparse
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser("")
+    parser = argparse.ArgumentParser("eval_subsets")
     parser.add_argument("--run_path", required=True)
     parser.add_argument("--data", required=True)
-    parser.add_argument("--negate", action="store_true")
-    parser.add_argument("--doc_priors", default=None)
     parser.add_argument("--out", default=None)
 
     args = parser.parse_args()
     run_path = args.run_path
     data = args.data
-    negate = args.negate
-    doc_priors = args.doc_priors
-
-    if negate:
-        negate = -1
-    else:
-        negate = 1
-
-    if doc_priors:
-        print(doc_priors)
-        with open(doc_priors, "rb") as reader:
-            doc_priors = pkl.load(reader)
-    else:
-        doc_priors = defaultdict(float)
-        print(f"doc priors not found")
 
     run = defaultdict(dict)
     with open(run_path) as reader:
         for i, line in enumerate(reader):
             qid, doc_id, score = line.split()
-            run[qid][doc_id] = negate * float(score) + doc_priors[doc_id]
+            run[qid][doc_id] = float(score)
 
     val = datasets.load_from_disk(data)
 

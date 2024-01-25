@@ -204,7 +204,7 @@ class MVRLDenseModel(DenseModel):
                 rep[:, D + 1:2 * D + 1] = means ** 2
                 rep[:, 2 * D + 1:] = means
             else:
-                rep[:, 0] = -1 * (torch.log(var) + means**2/var).sum(1)
+                rep[:, 0] = -1 * (torch.log(var) + means ** 2 / var).sum(1)
                 rep[:, 1:D + 1] = -1 / var
                 rep[:, D + 1:2 * D + 1] = (-1 / var)
                 rep[:, 2 * D + 1:] = (2 * means) / var
@@ -222,12 +222,10 @@ class MVRLDenseModel(DenseModel):
 
         # inference
         if q_reps is None:
-            return EncoderOutput(q_reps=None, p_reps=self.get_faiss_embed(p_reps, is_query=False),
-                                 extra={"p_mean": p_reps[0], "p_var": p_reps[1]})
+            return EncoderOutput(q_reps=None, p_reps=self.get_faiss_embed(p_reps, is_query=False))
         # inference
         if p_reps is None:
-            return EncoderOutput(q_reps=self.get_faiss_embed(q_reps, is_query=True), p_reps=None,
-                                 extra={"q_mean": q_reps[0], "q_var": q_reps[1]})
+            return EncoderOutput(q_reps=self.get_faiss_embed(q_reps, is_query=True), p_reps=None)
 
         q_reps_mean, q_reps_var = q_reps
         p_reps_mean, p_reps_var = p_reps

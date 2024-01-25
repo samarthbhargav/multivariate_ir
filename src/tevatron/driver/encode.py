@@ -101,7 +101,6 @@ def main():
     lookup_indices = []
     model = model.to(training_args.device)
     model.eval()
-    doc_priors = {}
     for batch_ids, batch in tqdm(encode_loader):
         lookup_indices.extend(batch_ids)
         with torch.cuda.amp.autocast() if training_args.fp16 else nullcontext():
@@ -114,22 +113,10 @@ def main():
                 else:
                     model_output: EncoderOutput = model(passage=batch)
                     encoded.append(model_output.p_reps.cpu().detach().numpy())
-
-                    if mvrl_args.model_type.startswith("mvrl"):
-                        doc_prior = model.doc_prior(model_output.extra["p_mean"], model_output.extra["p_var"])
-                        for pid, prior in zip(batch_ids, doc_prior.cpu().detach().numpy().tolist()):
-                            doc_priors[pid] = float(prior)
-
     encoded = np.concatenate(encoded)
     logger.info(f"saving to {data_args.encoded_save_path}")
     with open(data_args.encoded_save_path, "wb") as f:
         pickle.dump((encoded, lookup_indices), f)
-
-    if len(doc_priors) > 0:
-        doc_prior_path = data_args.encoded_save_path + "_doc_prior"
-        logger.info(f"saving doc priors to {doc_prior_path}")
-        with open(doc_prior_path, "wb") as f:
-            pickle.dump(doc_priors, f)
 
 
 if __name__ == "__main__":
