@@ -159,7 +159,7 @@ class MVRLDenseModel(DenseModel):
 
         self.embed_during_train = embed_during_train
         self.embed_formulation = embed_formulation
-        assert self.embed_formulation in {"original", "updated"}
+        assert self.embed_formulation in {"original", "updated", "mean"}
         logger.info(f"embed_during_train:{self.embed_during_train}, embed_formulation: {self.embed_formulation}")
         logger.info(f"projection_var: {self.projection_var}")
         logger.info(f"projection_mean: {self.projection_mean}")
@@ -196,7 +196,7 @@ class MVRLDenseModel(DenseModel):
 
             assert not torch.isinf(rep).any() and not torch.isnan(rep).any(), "obtained infs in representation"
             return rep
-        else:
+        elif self.embed_formulation == "updated":
             rep = torch.zeros(BZ, 1 + 3 * D, device=means.device)
             if is_query:
                 rep[:, 0] = 1
@@ -211,6 +211,10 @@ class MVRLDenseModel(DenseModel):
 
             assert not torch.isinf(rep).any() and not torch.isnan(rep).any(), "obtained infs in representation"
             return rep
+        elif self.embed_formulation == "mean":
+            return means
+        else:
+            raise NotImplementedError(self.embed_formulation)
 
     def forward(self, query: Dict[str, Tensor] = None, passage: Dict[str, Tensor] = None):
         q_reps = self.encode_query(query)
