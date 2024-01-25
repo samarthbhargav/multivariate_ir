@@ -189,7 +189,7 @@ class MVRLDenseModel(DenseModel):
                 rep[:, 2 + D:] = means
             else:
                 # doc prior, -1/\sum var, -1/var, (2*mu)/var
-                rep[:, 0] = -1 * (torch.log(var) + (means ** 2) / var).sum()
+                rep[:, 0] = -1 * (torch.log(var) + (means ** 2) / var).sum(1)
                 rep[:, 1] = (-1 / (var.prod(1) + eps))
                 rep[:, 2:2 + D] = (-1 / var)
                 rep[:, 2 + D:] = (2 * means) / var
@@ -204,10 +204,10 @@ class MVRLDenseModel(DenseModel):
                 rep[:, D + 1:2 * D + 1] = means ** 2
                 rep[:, 2 * D + 1:] = means
             else:
-                rep[:, 0] = torch.log(var).sum()
-                rep[:, 1:D + 1] = 1 / var
-                rep[:, D + 1:2 * D + 1] = (1 / var)
-                rep[:, 2 * D + 1:] = (-2 * means) / var
+                rep[:, 0] = -1 * (torch.log(var) + means**2/var).sum(1)
+                rep[:, 1:D + 1] = -1 / var
+                rep[:, D + 1:2 * D + 1] = (-1 / var)
+                rep[:, 2 * D + 1:] = (2 * means) / var
 
             assert not torch.isinf(rep).any() and not torch.isnan(rep).any(), "obtained infs in representation"
             return rep
