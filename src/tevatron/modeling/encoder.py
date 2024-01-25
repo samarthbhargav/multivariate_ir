@@ -23,6 +23,7 @@ class EncoderOutput(ModelOutput):
     p_reps: Optional[Tensor] = None
     loss: Optional[Tensor] = None
     scores: Optional[Tensor] = None
+    extra: Optional[Dict[str, Tensor]] = None
 
 
 class EncoderPooler(nn.Module):

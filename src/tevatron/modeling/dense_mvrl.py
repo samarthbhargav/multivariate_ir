@@ -220,10 +220,14 @@ class MVRLDenseModel(DenseModel):
         q_reps = self.encode_query(query)
         p_reps = self.encode_passage(passage)
 
+        # inference
         if q_reps is None:
-            return EncoderOutput(q_reps=None, p_reps=self.get_faiss_embed(p_reps, is_query=False))
+            return EncoderOutput(q_reps=None, p_reps=self.get_faiss_embed(p_reps, is_query=False),
+                                 extra={"p_mean": p_reps[0], "p_var": p_reps[1]})
+        # inference
         if p_reps is None:
-            return EncoderOutput(q_reps=self.get_faiss_embed(q_reps, is_query=True), p_reps=None)
+            return EncoderOutput(q_reps=self.get_faiss_embed(q_reps, is_query=True), p_reps=None,
+                                 extra={"q_mean": q_reps[0], "q_var": q_reps[1]})
 
         q_reps_mean, q_reps_var = q_reps
         p_reps_mean, p_reps_var = p_reps
@@ -324,6 +328,9 @@ class MVRLDenseModel(DenseModel):
 
             kl = -0.5 * (log_var_diff + tr_prod + diff_div)
             return kl
+
+    def doc_prior(self, mean: torch.Tensor, var: torch.Tensor) -> torch.Tensor:
+        return -torch.log(var).sum(1) - (mean ** 2 / var).sum(1)
 
     def save(self, output_dir: str):
         super().save(output_dir)
