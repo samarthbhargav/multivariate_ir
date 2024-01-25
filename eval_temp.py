@@ -57,8 +57,10 @@ if __name__ == '__main__':
     for measure in measures:
         mean_ = np.mean([_[measure] for _ in res.values()])
         mean_res[measure] = mean_
-        # print(measure, round(mean_, 4))
+        if not args.out:
+            print(measure, round(mean_, 4))
 
     if args.out:
+        print(args.out)
         with open(args.out, "w") as writer:
             json.dump(mean_res, writer, indent=2)
