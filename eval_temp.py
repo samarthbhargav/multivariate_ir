@@ -22,7 +22,6 @@ if negate == "yes":
 else:
     negate = 1
 
-
 if os.path.isfile(doc_priors):
     print(doc_priors)
     with open(doc_priors, "rb") as reader:
@@ -36,9 +35,6 @@ with open(run_path) as reader:
     for i, line in enumerate(reader):
         qid, doc_id, score = line.split()
         run[qid][doc_id] = negate * float(score) + doc_priors[doc_id]
-
-        if i % 1000 == 0:
-            print("read", i, "lines")
 
 val = datasets.load_from_disk(data)
 
@@ -58,7 +54,7 @@ mean_res = {}
 for measure in measures:
     mean_ = np.mean([_[measure] for _ in res.values()])
     mean_res[measure] = mean_
-    print(measure, round(mean_, 4))
+    # print(measure, round(mean_, 4))
 
 if len(sys.argv) > 5:
     out = sys.argv[5]
