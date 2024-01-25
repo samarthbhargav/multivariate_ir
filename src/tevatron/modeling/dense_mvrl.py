@@ -239,7 +239,7 @@ class MVRLDenseModel(DenseModel):
 
             target = torch.arange(scores.size(0), device=scores.device, dtype=torch.long)
             target = target * (p_reps_mean.size(0) // q_reps_mean.size(0))
-
+            # print(scores, target)
             loss = self.compute_loss(scores, target)
             if self.negatives_x_device:
                 loss = loss * self.world_size  # counter average weight reduction
@@ -293,19 +293,32 @@ class MVRLDenseModel(DenseModel):
                                               p_reps=self.get_faiss_embed((p_reps_mean, p_reps_var), is_query=False))
 
         else:
-            kl = torch.zeros(q_reps_mean.size(0), p_reps_mean.size(0), device=q_reps_mean.device)
-            p = []
-            q = []
+            var1 = torch.clamp(q_reps_var, min=1e-10)
+            var2 = torch.clamp(p_reps_var, min=1e-10)
+            k = q_reps_mean.size(1)
 
-            for i in range(q_reps_mean.size(0)):
-                q.append(MultivariateNormal(q_reps_mean[i, :], torch.diag(q_reps_var[i, :])))
+            # shape = BZ_1xD
+            logvar1 = torch.log(var1)
+            # log determinant
+            logvar1det = logvar1.sum(1)
+            # shape = BZ_2xD
+            logvar2 = torch.log(var2)
+            logvar2det = logvar2.sum(1)
 
-            for i in range(p_reps_mean.size(0)):
-                p.append(MultivariateNormal(p_reps_mean[i, :], torch.diag(p_reps_var[i, :])))
+            # matrix of log(det(var2)) - log(det(var1)) - k
+            # shape = BZ_1, BZ_2 where (i,j) = (i+j)
+            log_var_diff = -logvar1det.reshape(-1, 1) + logvar2det - k
 
-            # Q x P
-            for (i, j) in np.ndindex(len(q), len(p)):
-                kl[i, j] = -torch.distributions.kl_divergence(q[i], p[j])
+            # inverse of var2
+            var2inv = 1 / var2
+            # trace(var2^-1. var1) if both var1/var2 are diagonal
+            tr_prod = var1.matmul(var2inv.T)
+
+            # mudiff_sq - shape of BZ_1xBZ_2xD
+            mudiff_sq = (q_reps_mean.reshape(-1, 1, k) - p_reps_mean) ** 2
+            diff_div = (mudiff_sq * var2inv).sum(dim=-1)
+
+            kl = -0.5 * (log_var_diff + tr_prod + diff_div)
             return kl
 
     def save(self, output_dir: str):
