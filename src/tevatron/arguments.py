@@ -82,6 +82,13 @@ class DataArguments:
     exclude_title: bool = field(default=False)
     add_var_token: bool = field(default=False)
 
+    ann_neg_num: int = field(
+        default=0,
+        metadata={
+            "help": "The number of ANN hard negatives. If dataset does not contain column ann_negatives, ann_neg_num should be 0"
+        },
+    )
+
     def __post_init__(self):
         if self.dataset_name is not None:
             info = self.dataset_name.split("/")
@@ -134,3 +141,4 @@ class MVRLTrainingArguments:
         "help": "if set, uses the embedding similarity instead of KL in the loss"})
     embed_formulation: str = field(default="original",
                                    metadata={"help": "whether to use the 'original' or 'updated' formulation"})
+
