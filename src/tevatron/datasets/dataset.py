@@ -26,9 +26,11 @@ class HFTrainDataset:
         if is_validation:
             data_files = data_args.val_dir
             self.neg_num = data_args.eval_n_passages - 1
+            self.ann_neg_num = 0
         else:
             data_files = data_args.train_dir
             self.neg_num = data_args.train_n_passages - 1
+            self.ann_neg_num = data_args.ann_neg_num
 
         if data_files:
             self.dataset = load_from_disk(data_files)
@@ -53,17 +55,21 @@ class HFTrainDataset:
         self.separator = getattr(self.tokenizer, data_args.passage_field_separator, data_args.passage_field_separator)
         self.add_var_token = data_args.add_var_token
         self.exclude_title = data_args.exclude_title
+        self.is_validation = is_validation
         logger.info(f"exclude_title:{self.exclude_title}; add_var_token: {self.add_var_token}")
+        logger.info(f"ann_negatives:{self.ann_neg_num}; is_validation: {self.is_validation}")
 
     def process(self, shard_num=1, shard_idx=0):
         self.dataset = self.dataset.shard(shard_num, shard_idx)
+        ann_negs = True if self.ann_neg_num != 0 else False
         if self.preprocessor is not None:
             self.dataset = self.dataset.map(
                 self.preprocessor(self.tokenizer, self.q_max_len,
                                   self.p_max_len,
                                   separator=self.separator,
                                   exclude_title=self.exclude_title,
-                                  add_var_token=self.add_var_token),
+                                  add_var_token=self.add_var_token,
+                                  ann_negatives=ann_negs),
                 batched=False,
                 num_proc=self.proc_num,
                 remove_columns=self.dataset.column_names,

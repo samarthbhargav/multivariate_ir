@@ -24,7 +24,6 @@ class DistilPreProcessor:
         self.text_max_length = text_max_length
         self.separator = separator
         self.ann_negatives = ann_negatives
-        # TODO: use these flags
         self.exclude_title = exclude_title
         self.add_var_token = add_var_token
 
@@ -294,7 +293,8 @@ class DistilTrainDataset(Dataset):
                     (group["eval_meta"]["query_id"], group["eval_meta"]["negative_passages"][neg_psg_idx], 0)
                 )
 
-        if self.data_args.ann_neg_num != 0:
+        # don't load ANN negatives for validation
+        if not self.is_validation and self.data_args.ann_neg_num > 0:
             student_ann_negatives = group["student_ann_negatives"]
             teacher_ann_negatives = group["teacher_ann_negatives"]
 

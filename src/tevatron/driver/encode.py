@@ -62,7 +62,7 @@ def main():
             config=config,
             cache_dir=model_args.cache_dir,
         )
-    elif mvrl_args.model_type == "mvrl_no_distill":
+    elif mvrl_args.model_type.startswith("mvrl"):
         assert "[VAR]" in tokenizer.all_special_tokens
         model = MVRLDenseModel.load(
             model_args=model_args,

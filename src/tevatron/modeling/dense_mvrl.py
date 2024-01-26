@@ -140,7 +140,6 @@ class MVRLDenseModel(DenseModel):
     ):
         super().__init__(lm_q=lm_q, lm_p=lm_p, pooler=pooler, untie_encoder=untie_encoder,
                          negatives_x_device=negatives_x_device)
-
         self.projection_dim = int(output_dim / 2) - 1
         self.projection_mean = nn.Linear(output_dim, self.projection_dim, bias=False)
 
