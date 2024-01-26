@@ -68,7 +68,7 @@ class HFTrainDataset:
                 num_proc=self.proc_num,
                 remove_columns=self.dataset.column_names,
                 desc="Running tokenizer on train dataset",
-                load_from_cache_file=False,
+                load_from_cache_file=False
             )
         return self.dataset
 
@@ -111,7 +111,7 @@ class HFQueryDataset:
                 num_proc=self.proc_num,
                 remove_columns=self.dataset.column_names,
                 desc="Running tokenization",
-                load_from_cache_file=False,
+                load_from_cache_file=False
             )
         return self.dataset
 
@@ -158,6 +158,6 @@ class HFCorpusDataset:
                 num_proc=self.proc_num,
                 remove_columns=self.dataset.column_names,
                 desc="Running tokenization",
-                load_from_cache_file=False,
+                load_from_cache_file=False
             )
         return self.dataset

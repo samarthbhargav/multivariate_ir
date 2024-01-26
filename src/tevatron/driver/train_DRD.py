@@ -1,14 +1,18 @@
 import logging
 import os
 import sys
+import json
 
 import torch
-from transformers import AutoConfig, AutoTokenizer, HfArgumentParser, set_seed
+import pandas as pd
+
+from transformers import AutoConfig, AutoTokenizer, HfArgumentParser, set_seed, EarlyStoppingCallback
 
 from tevatron.arguments import DataArguments, MVRLTrainingArguments
 from tevatron.distillation.arguments import DistilModelArguments, DistilTrainingArguments
 from tevatron.distillation.data import DistilTrainCollator, DistilTrainDataset, HFDistilTrainDataset
 from tevatron.distillation.trainer import DistilTrainer, ListwiseDistilTrainer
+from tevatron.driver.train import compute_metrics
 from tevatron.modeling import DenseModel
 from tevatron.modeling.dense_mvrl import MVRLDenseModel
 from tevatron.reranker.modeling import RerankerModel
@@ -136,16 +140,40 @@ def main():
         data_args=data_args,
         cache_dir=data_args.data_cache_dir or model_args.cache_dir,
     )
+
     if training_args.local_rank > 0:
         print("Waiting for main process to perform the mapping")
         if not training_args.disable_distributed:
             torch.distributed.barrier()
 
     train_dataset = DistilTrainDataset(data_args, train_dataset.process(), tokenizer, teacher_tokenizer)
+
+    if training_args.do_eval and data_args.val_dir:
+        val_dataset = HFDistilTrainDataset(student_tokenizer=tokenizer,
+                                           teacher_tokenizer=teacher_tokenizer,
+                                           data_args=data_args,
+                                           cache_dir=data_args.data_cache_dir or model_args.cache_dir,
+                                           is_validation=True)
+        logger.info(f"validation dataset: {val_dataset.dataset}")
+        val_dataset = DistilTrainDataset(data_args,
+                                         val_dataset.process(),
+                                         tokenizer,
+                                         teacher_tokenizer,
+                                         is_validation=True)
+    else:
+        val_dataset = None
+        logger.info(f"no validation dataset selected!")
+
     if training_args.local_rank == 0:
         print("Loading results from main process")
         if not training_args.disable_distributed:
             torch.distributed.barrier()
+
+    if training_args.early_stopping_patience > 0:
+        callbacks = [EarlyStoppingCallback(early_stopping_patience=training_args.early_stopping_patience,
+                                           early_stopping_threshold=training_args.early_stopping_threshold)]
+    else:
+        callbacks = None
 
     if training_args.listwise_kd:
         trainer = ListwiseDistilTrainer(
@@ -153,6 +181,9 @@ def main():
             model=model,
             args=training_args,
             train_dataset=train_dataset,
+            eval_dataset=val_dataset,
+            callbacks=callbacks,
+            compute_metrics=compute_metrics,
             data_collator=DistilTrainCollator(
                 tokenizer, teacher_tokenizer=teacher_tokenizer, max_p_len=data_args.p_max_len,
                 max_q_len=data_args.q_max_len
@@ -164,15 +195,34 @@ def main():
             model=model,
             args=training_args,
             train_dataset=train_dataset,
+            eval_dataset=val_dataset,
+            callbacks=callbacks,
+            compute_metrics=compute_metrics,
             data_collator=DistilTrainCollator(
                 tokenizer, teacher_tokenizer=teacher_tokenizer, max_p_len=data_args.p_max_len,
                 max_q_len=data_args.q_max_len
             ),
         )
     train_dataset.trainer = trainer
+    if val_dataset:
+        val_dataset.trainer = trainer
 
     trainer.train()  # TODO: resume training
+
+    if val_dataset:
+        eval_result = trainer.evaluate(eval_dataset=val_dataset)
+    else:
+        eval_result = {}
+
+    logger.info(f"evaluation result: {eval_result}")
+
     trainer.save_model()
+
+    pd.DataFrame(trainer.state.log_history).to_csv(os.path.join(training_args.output_dir, "trainer_state.csv"))
+
+    with open(os.path.join(training_args.output_dir, "eval_result.json"), "w") as writer:
+        json.dump(eval_result, writer)
+
     if trainer.is_world_process_zero():
         tokenizer.save_pretrained(training_args.output_dir)
     if not training_args.disable_distributed:
