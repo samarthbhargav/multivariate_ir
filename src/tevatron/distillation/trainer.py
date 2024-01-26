@@ -11,17 +11,21 @@ from torch.utils.data import DataLoader
 from transformers.trainer import Trainer
 from collections import defaultdict
 
+from tevatron.distillation.arguments import DistilTrainingArguments
+
 logger = logging.getLogger(__name__)
 
 
 class DistilTrainer(Trainer):
     def __init__(self, teacher_model, *args, **kwargs):
         super(DistilTrainer, self).__init__(*args, **kwargs)
+        self.args: DistilTrainingArguments
         self.teacher_model = teacher_model
         self._dist_loss_scale_factor = dist.get_world_size() if self.args.negatives_x_device else 1
         if self.args.negatives_x_device:
             self.world_size = dist.get_world_size()
             self.process_rank = dist.get_rank()
+        self.in_batch_neg_score = self.args.in_batch_neg_score
 
     def _save(self, output_dir: Optional[str] = None):
         output_dir = output_dir if output_dir is not None else self.args.output_dir
@@ -62,6 +66,8 @@ class DistilTrainer(Trainer):
             if self.args.negatives_x_device:
                 teacher_scores = self._dist_gather_tensor(teacher_scores)
         teacher_mat = torch.zeros(student_scores.shape, dtype=student_scores.dtype, device=teacher_scores.device)
+        if self.in_batch_neg_score != 0:
+            teacher_mat.fill_(self.in_batch_neg_score)
         index = torch.arange(teacher_scores.size(0), device=teacher_scores.device)
         teacher_scores = torch.softmax(
             teacher_scores.view(student_scores.size(0), -1) / self.args.teacher_temp, dim=1, dtype=student_scores.dtype
