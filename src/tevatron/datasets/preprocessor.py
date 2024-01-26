@@ -12,41 +12,38 @@ class TrainPreProcessor:
         self.exclude_title = exclude_title
         self.add_var_token = add_var_token
 
-    def __call__(self, example):
-        query_text = example["query"]
-        eval_meta = {"query_id": example["query_id"], "positive_passages": [], "negative_passages": []}
+    def _preproc(self, text, title):
+        if not self.exclude_title:
+            text = title + self.separator + text if title else text
 
         if self.add_var_token:
-            query_text = VAR_PREFIX + self.separator + example["query"]
+            text = VAR_PREFIX + self.separator + text
+
+        return text
+
+    def __call__(self, example):
+        eval_meta = {"query_id": example["query_id"], "positive_passages": [], "negative_passages": []}
+
         query = self.tokenizer.encode(
-            query_text, add_special_tokens=False, max_length=self.query_max_length, truncation=True
+            self._preproc(example["query"], None), add_special_tokens=False, max_length=self.query_max_length,
+            truncation=True
         )
         positives = []
         for pos in example["positive_passages"]:
-            if self.exclude_title:
-                text = pos["text"]
-            else:
-                text = pos["title"] + self.separator + pos["text"] if "title" in pos else pos["text"]
-
-            if self.add_var_token:
-                text = VAR_PREFIX + self.separator + text
-
             positives.append(
-                self.tokenizer.encode(text, add_special_tokens=False, max_length=self.text_max_length, truncation=True)
+                self.tokenizer.encode(self._preproc(pos["text"], pos["title"]),
+                                      add_special_tokens=False,
+                                      max_length=self.text_max_length, truncation=True)
             )
             eval_meta["positive_passages"].append(pos["docid"])
+
         negatives = []
         for neg in example["negative_passages"]:
-            if self.exclude_title:
-                text = neg["text"]
-            else:
-                text = neg["title"] + self.separator + neg["text"] if "title" in neg else neg["text"]
-
-            if self.add_var_token:
-                text = VAR_PREFIX + self.separator + text
-
             negatives.append(
-                self.tokenizer.encode(text, add_special_tokens=False, max_length=self.text_max_length, truncation=True)
+                self.tokenizer.encode(self._preproc(neg["text"], neg["title"]),
+                                      add_special_tokens=False,
+                                      max_length=self.text_max_length,
+                                      truncation=True)
             )
             eval_meta["negative_passages"].append(neg["docid"])
 
@@ -80,15 +77,19 @@ class CorpusPreProcessor:
         self.exclude_title = exclude_title
         self.add_var_token = add_var_token
 
-    def __call__(self, example):
-        docid = example["docid"]
-        if self.exclude_title:
-            text = example["text"]
-        else:
-            text = example["title"] + self.separator + example["text"] if "title" in example else example["text"]
+    def _preproc(self, text, title):
+        if not self.exclude_title:
+            text = title + self.separator + text if title else text
 
         if self.add_var_token:
             text = VAR_PREFIX + self.separator + text
+
+        return text
+
+    def __call__(self, example):
+        docid = example["docid"]
+
+        text = self._preproc(example["text"], example["title"])
 
         text = self.tokenizer.encode(text, add_special_tokens=False, max_length=self.text_max_length, truncation=True)
         return {"text_id": docid, "text": text}

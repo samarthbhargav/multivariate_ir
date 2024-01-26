@@ -153,9 +153,12 @@ class MVRLDenseModel(DenseModel):
                 nn.Linear(output_dim, self.projection_dim, bias=False),
                 nn.Softplus(beta=var_activation_params["beta"])
             )
-        else:
+        elif self.var_activation == "logvar":
+            # assume that the output is the log-variance, not the variance
             self.projection_var = nn.Linear(output_dim, self.projection_dim, bias=False)
-            raise NotImplementedError("TODO")
+            raise NotImplementedError(self.var_activation)
+        else:
+            raise NotImplementedError(self.var_activation)
 
         self.embed_during_train = embed_during_train
         self.embed_formulation = embed_formulation
