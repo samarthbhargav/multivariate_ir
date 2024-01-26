@@ -159,7 +159,7 @@ class MVRLDenseModel(DenseModel):
 
         self.embed_during_train = embed_during_train
         self.embed_formulation = embed_formulation
-        assert self.embed_formulation in {"original", "updated"}
+        assert self.embed_formulation in {"original", "updated", "mean"}
         logger.info(f"embed_during_train:{self.embed_during_train}, embed_formulation: {self.embed_formulation}")
         logger.info(f"projection_var: {self.projection_var}")
         logger.info(f"projection_mean: {self.projection_mean}")
@@ -189,14 +189,14 @@ class MVRLDenseModel(DenseModel):
                 rep[:, 2 + D:] = means
             else:
                 # doc prior, -1/\sum var, -1/var, (2*mu)/var
-                rep[:, 0] = -1 * (torch.log(var) + (means ** 2) / var).sum()
+                rep[:, 0] = -1 * (torch.log(var) + (means ** 2) / var).sum(1)
                 rep[:, 1] = (-1 / (var.prod(1) + eps))
                 rep[:, 2:2 + D] = (-1 / var)
                 rep[:, 2 + D:] = (2 * means) / var
 
             assert not torch.isinf(rep).any() and not torch.isnan(rep).any(), "obtained infs in representation"
             return rep
-        else:
+        elif self.embed_formulation == "updated":
             rep = torch.zeros(BZ, 1 + 3 * D, device=means.device)
             if is_query:
                 rep[:, 0] = 1
@@ -204,20 +204,26 @@ class MVRLDenseModel(DenseModel):
                 rep[:, D + 1:2 * D + 1] = means ** 2
                 rep[:, 2 * D + 1:] = means
             else:
-                rep[:, 0] = torch.log(var).sum()
-                rep[:, 1:D + 1] = 1 / var
-                rep[:, D + 1:2 * D + 1] = (1 / var)
-                rep[:, 2 * D + 1:] = (-2 * means) / var
+                rep[:, 0] = -1 * (torch.log(var) + means ** 2 / var).sum(1)
+                rep[:, 1:D + 1] = -1 / var
+                rep[:, D + 1:2 * D + 1] = (-1 / var)
+                rep[:, 2 * D + 1:] = (2 * means) / var
 
             assert not torch.isinf(rep).any() and not torch.isnan(rep).any(), "obtained infs in representation"
             return rep
+        elif self.embed_formulation == "mean":
+            return means
+        else:
+            raise NotImplementedError(self.embed_formulation)
 
     def forward(self, query: Dict[str, Tensor] = None, passage: Dict[str, Tensor] = None):
         q_reps = self.encode_query(query)
         p_reps = self.encode_passage(passage)
 
+        # inference
         if q_reps is None:
             return EncoderOutput(q_reps=None, p_reps=self.get_faiss_embed(p_reps, is_query=False))
+        # inference
         if p_reps is None:
             return EncoderOutput(q_reps=self.get_faiss_embed(q_reps, is_query=True), p_reps=None)
 
@@ -239,7 +245,6 @@ class MVRLDenseModel(DenseModel):
 
             target = torch.arange(scores.size(0), device=scores.device, dtype=torch.long)
             target = target * (p_reps_mean.size(0) // q_reps_mean.size(0))
-
             loss = self.compute_loss(scores, target)
             if self.negatives_x_device:
                 loss = loss * self.world_size  # counter average weight reduction
@@ -293,19 +298,32 @@ class MVRLDenseModel(DenseModel):
                                               p_reps=self.get_faiss_embed((p_reps_mean, p_reps_var), is_query=False))
 
         else:
-            kl = torch.zeros(q_reps_mean.size(0), p_reps_mean.size(0), device=q_reps_mean.device)
-            p = []
-            q = []
+            var1 = torch.clamp(q_reps_var, min=1e-10)
+            var2 = torch.clamp(p_reps_var, min=1e-10)
+            k = q_reps_mean.size(1)
 
-            for i in range(q_reps_mean.size(0)):
-                q.append(MultivariateNormal(q_reps_mean[i, :], torch.diag(q_reps_var[i, :])))
+            # shape = BZ_1xD
+            logvar1 = torch.log(var1)
+            # log determinant
+            logvar1det = logvar1.sum(1)
+            # shape = BZ_2xD
+            logvar2 = torch.log(var2)
+            logvar2det = logvar2.sum(1)
 
-            for i in range(p_reps_mean.size(0)):
-                p.append(MultivariateNormal(p_reps_mean[i, :], torch.diag(p_reps_var[i, :])))
+            # matrix of log(det(var2)) - log(det(var1)) - k
+            # shape = BZ_1, BZ_2 where (i,j) = (i+j)
+            log_var_diff = -logvar1det.reshape(-1, 1) + logvar2det - k
 
-            # Q x P
-            for (i, j) in np.ndindex(len(q), len(p)):
-                kl[i, j] = -torch.distributions.kl_divergence(q[i], p[j])
+            # inverse of var2
+            var2inv = 1 / var2
+            # trace(var2^-1. var1) if both var1/var2 are diagonal
+            tr_prod = var1.matmul(var2inv.T)
+
+            # mudiff_sq - shape of BZ_1xBZ_2xD
+            mudiff_sq = (q_reps_mean.reshape(-1, 1, k) - p_reps_mean) ** 2
+            diff_div = (mudiff_sq * var2inv).sum(dim=-1)
+
+            kl = -0.5 * (log_var_diff + tr_prod + diff_div)
             return kl
 
     def save(self, output_dir: str):

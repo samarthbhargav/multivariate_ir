@@ -4,23 +4,24 @@ from dataclasses import dataclass
 from typing import List, Tuple
 
 import datasets
-from datasets import load_dataset
-from torch.utils.data import Dataset
-from transformers import BatchEncoding, DataCollatorWithPadding, PreTrainedTokenizer
-from transformers.tokenization_utils_base import PreTrainedTokenizerBase
-
+from datasets import load_dataset, load_from_disk
 from tevatron.arguments import DataArguments
+from torch.utils.data import Dataset
+from transformers import BatchEncoding, PreTrainedTokenizer
+from transformers.tokenization_utils_base import PreTrainedTokenizerBase
 
 logger = logging.getLogger(__name__)
 
 
 class DistilPreProcessor:
-    def __init__(self, student_tokenizer, teacher_tokenizer, query_max_length=32, text_max_length=256, separator=" "):
+    def __init__(self, student_tokenizer, teacher_tokenizer, query_max_length=32, text_max_length=256, separator=" ",
+                 ann_negatives=False):
         self.student_tokenizer = student_tokenizer
         self.teacher_tokenizer = teacher_tokenizer
         self.query_max_length = query_max_length
         self.text_max_length = text_max_length
         self.separator = separator
+        self.ann_negatives = ann_negatives
 
     def __call__(self, example):
         student_query = self.student_tokenizer.encode(
@@ -57,30 +58,61 @@ class DistilPreProcessor:
                     text, add_special_tokens=False, max_length=self.text_max_length, truncation=True
                 )
             )
-        return {
-            "student_query": student_query,
-            "student_positives": student_positives,
-            "student_negatives": student_negatives,
-            "teacher_query": teacher_query,
-            "teacher_positives": teacher_positives,
-            "teacher_negatives": teacher_negatives,
-        }
+
+        if self.ann_negatives:
+
+            student_ann_negatives = []
+            teacher_ann_negatives = []
+            for neg in example["ann_negatives"]:
+                text = neg["title"] + self.separator + neg["text"] if "title" in neg else neg["text"]
+                student_ann_negatives.append(
+                    self.student_tokenizer.encode(
+                        text, add_special_tokens=False, max_length=self.text_max_length, truncation=True
+                    )
+                )
+                teacher_ann_negatives.append(
+                    self.teacher_tokenizer.encode(
+                        text, add_special_tokens=False, max_length=self.text_max_length, truncation=True
+                    )
+                )
+
+            return {
+                "student_query": student_query,
+                "student_positives": student_positives,
+                "student_negatives": student_negatives,
+                "student_ann_negatives": student_ann_negatives,
+                "teacher_query": teacher_query,
+                "teacher_positives": teacher_positives,
+                "teacher_negatives": teacher_negatives,
+                "teacher_ann_negatives": teacher_ann_negatives,
+            }
+        else:
+            return {
+                "student_query": student_query,
+                "student_positives": student_positives,
+                "student_negatives": student_negatives,
+                "teacher_query": teacher_query,
+                "teacher_positives": teacher_positives,
+                "teacher_negatives": teacher_negatives,
+            }
 
 
 class HFDistilTrainDataset:
     def __init__(
-        self,
-        student_tokenizer: PreTrainedTokenizer,
-        teacher_tokenizer: PreTrainedTokenizer,
-        data_args: DataArguments,
-        cache_dir: str,
+            self,
+            student_tokenizer: PreTrainedTokenizer,
+            teacher_tokenizer: PreTrainedTokenizer,
+            data_args: DataArguments,
+            cache_dir: str,
     ):
-        data_files = data_args.train_path
+        data_files = data_args.train_dir
         if data_files:
-            data_files = {data_args.dataset_split: data_files}
-        self.dataset = load_dataset(
-            data_args.dataset_name, data_args.dataset_language, data_files=data_files, cache_dir=cache_dir
-        )[data_args.dataset_split]
+            self.dataset = load_from_disk(data_files)
+        else:
+            self.dataset = load_dataset(
+                data_args.dataset_name, data_args.dataset_language, data_files=data_files, cache_dir=cache_dir
+            )[data_args.dataset_split]
+
         self.preprocessor = None if data_args.dataset_name == "json" else DistilPreProcessor
         self.student_tokenizer = student_tokenizer
         self.teacher_tokenizer = teacher_tokenizer
@@ -89,13 +121,16 @@ class HFDistilTrainDataset:
         self.proc_num = data_args.dataset_proc_num
         self.neg_num = data_args.train_n_passages - 1
         self.separator = " "
+        self.ann_neg_num = data_args.ann_neg_num
 
     def process(self, shard_num=1, shard_idx=0):
         self.dataset = self.dataset.shard(shard_num, shard_idx)
+        ann_negs = True if self.ann_neg_num != 0 else False
         if self.preprocessor is not None:
             self.dataset = self.dataset.map(
                 self.preprocessor(
-                    self.student_tokenizer, self.teacher_tokenizer, self.q_max_len, self.p_max_len, self.separator
+                    self.student_tokenizer, self.teacher_tokenizer, self.q_max_len, self.p_max_len, self.separator,
+                    ann_negs
                 ),
                 batched=False,
                 num_proc=self.proc_num,
@@ -107,11 +142,11 @@ class HFDistilTrainDataset:
 
 class DistilTrainDataset(Dataset):
     def __init__(
-        self,
-        data_args: DataArguments,
-        dataset: datasets.Dataset,
-        student_tokenizer: PreTrainedTokenizer,
-        teacher_tokenizer: PreTrainedTokenizer,
+            self,
+            data_args: DataArguments,
+            dataset: datasets.Dataset,
+            student_tokenizer: PreTrainedTokenizer,
+            teacher_tokenizer: PreTrainedTokenizer,
     ):
         self.train_data = dataset
         self.student_tokenizer = student_tokenizer
@@ -172,9 +207,28 @@ class DistilTrainDataset(Dataset):
             negs_idxs = list(range(len(student_negatives)))[:negative_size]
         else:
             negs_idxs = random.sample(list(range(len(student_negatives))), negative_size)
+
         for neg_psg_idx in negs_idxs:
             encoded_teacher_pairs.append(self.create_teacher_example(teacher_qry, teacher_negatives[neg_psg_idx]))
             encoded_student_passages.append(self.create_student_example(student_negatives[neg_psg_idx]))
+
+        if self.data_args.ann_neg_num != 0:
+            student_ann_negatives = group["student_ann_negatives"]
+            teacher_ann_negatives = group["teacher_ann_negatives"]
+
+            ann_negative_size = self.data_args.ann_neg_num
+            if len(student_ann_negatives) < ann_negative_size:
+                negs_idxs = random.choices(list(range(len(student_ann_negatives))), k=ann_negative_size)
+            elif self.data_args.negative_passage_no_shuffle:
+                negs_idxs = list(range(len(student_ann_negatives)))[:ann_negative_size]
+            else:
+                negs_idxs = random.sample(list(range(len(student_ann_negatives))), ann_negative_size)
+
+            for neg_psg_idx in negs_idxs:
+                encoded_teacher_pairs.append(
+                    self.create_teacher_example(teacher_qry, teacher_ann_negatives[neg_psg_idx]))
+                encoded_student_passages.append(self.create_student_example(student_ann_negatives[neg_psg_idx]))
+
         return encoded_student_query, encoded_student_passages, encoded_teacher_pairs
 
 
@@ -216,3 +270,4 @@ class DistilTrainCollator:
             return_tensors="pt",
         )
         return q_collated, d_collated, p_collated
+

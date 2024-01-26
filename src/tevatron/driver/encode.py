@@ -101,7 +101,6 @@ def main():
     lookup_indices = []
     model = model.to(training_args.device)
     model.eval()
-
     for batch_ids, batch in tqdm(encode_loader):
         lookup_indices.extend(batch_ids)
         with torch.cuda.amp.autocast() if training_args.fp16 else nullcontext():
@@ -115,6 +114,7 @@ def main():
                     model_output: EncoderOutput = model(passage=batch)
                     encoded.append(model_output.p_reps.cpu().detach().numpy())
     encoded = np.concatenate(encoded)
+    logger.info(f"saving to {data_args.encoded_save_path}")
     with open(data_args.encoded_save_path, "wb") as f:
         pickle.dump((encoded, lookup_indices), f)
 
