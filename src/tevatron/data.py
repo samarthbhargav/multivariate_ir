@@ -20,7 +20,7 @@ class TrainDataset(Dataset):
             dataset: datasets.Dataset,
             tokenizer: PreTrainedTokenizer,
             trainer: TevatronTrainer = None,
-            is_validation=False,
+            is_validation=False
     ):
         self.train_data = dataset
         self.tok = tokenizer
@@ -110,6 +110,18 @@ class TrainDataset(Dataset):
                 labels.append((
                     (group["eval_meta"]["query_id"], neg_psg_ids[i], 0)
                 ))
+
+        if not self.is_validation and self.data_args.ann_neg_num > 0:
+            ann_negatives = group["ann_negatives"]
+            ann_negative_size = self.data_args.ann_neg_num
+            if len(ann_negatives) < ann_negative_size:
+                negs_idxs = random.choices(list(range(len(ann_negatives))), k=ann_negative_size)
+            elif self.data_args.negative_passage_no_shuffle:
+                negs_idxs = list(range(len(ann_negatives)))[:ann_negative_size]
+            else:
+                negs_idxs = random.sample(list(range(len(ann_negatives))), ann_negative_size)
+            for neg_psg_idx in negs_idxs:
+                encoded_passages.append(self.create_one_example(ann_negatives[neg_psg_idx]))
 
         if self.is_validation:
             # returns 1, N, N

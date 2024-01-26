@@ -4,13 +4,15 @@ VAR_PREFIX = "[VAR]"
 class TrainPreProcessor:
     def __init__(self, tokenizer, query_max_length=32,
                  text_max_length=256, separator=" ",
-                 exclude_title=False, add_var_token=False):
+                 exclude_title=False, add_var_token=False,
+                 ann_negatives=False):
         self.tokenizer = tokenizer
         self.query_max_length = query_max_length
         self.text_max_length = text_max_length
         self.separator = separator
         self.exclude_title = exclude_title
         self.add_var_token = add_var_token
+        self.ann_negatives = ann_negatives
 
     def _preproc(self, text, title):
         if not self.exclude_title:
@@ -47,7 +49,20 @@ class TrainPreProcessor:
             )
             eval_meta["negative_passages"].append(neg["docid"])
 
-        return {"query": query, "positives": positives, "negatives": negatives, "eval_meta": eval_meta}
+        out = {"query": query, "positives": positives, "negatives": negatives, "eval_meta": eval_meta}
+        if self.ann_negatives:
+            ann_negatives = []
+            for neg in example["ann_negatives"]:
+                ann_negatives.append(
+                    self.tokenizer.encode(
+                        self._preproc(neg["text"], neg["title"]),
+                        add_special_tokens=False,
+                        max_length=self.text_max_length,
+                        truncation=True
+                    )
+                )
+            out["ann_negatives"] = ann_negatives
+        return out
 
 
 class QueryPreProcessor:
