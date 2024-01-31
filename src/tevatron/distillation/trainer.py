@@ -192,7 +192,7 @@ class ListwiseDistilTrainer(DistilTrainer):
             teacher_scores = teacher_scores.view(student_scores.size(0), -1)
 
         teacher_mat = torch.scatter(
-            teacher_mat, dim=-1, index=index.view(student_scores.size(0), -1), src=teacher_scores
+            teacher_mat, dim=-1, index=index.view(student_scores.size(0), -1), src=teacher_scores.to(teacher_mat.dtype)
         )
 
         # sort predicted scores
