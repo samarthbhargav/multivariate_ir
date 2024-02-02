@@ -158,7 +158,13 @@ def main():
         callbacks=callbacks,
         data_collator=QPCollator(tokenizer, max_p_len=data_args.p_max_len, max_q_len=data_args.q_max_len),
     )
+
+    if trainer.is_world_process_zero():
+        logger.info(f"saving tokenizer to {training_args.output_dir}")
+        tokenizer.save_pretrained(training_args.output_dir)
+
     train_dataset.trainer = trainer
+
     if val_dataset:
         val_dataset.trainer = trainer
 
@@ -176,10 +182,6 @@ def main():
 
     with open(os.path.join(training_args.output_dir, "eval_result.json"), "w") as writer:
         json.dump(eval_result, writer)
-
-    if trainer.is_world_process_zero():
-        logger.info(f"saving tokenizer to {training_args.output_dir}")
-        tokenizer.save_pretrained(training_args.output_dir)
 
     if not training_args.disable_distributed:
         cleanup()
