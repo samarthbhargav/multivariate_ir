@@ -5,6 +5,8 @@ __pycache__/
 
 *.job
 *.params
+*.err
+*.out
 
 .ipynb_checkpoints/
 msmarco-med/
