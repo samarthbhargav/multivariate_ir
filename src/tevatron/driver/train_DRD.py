@@ -99,7 +99,6 @@ def main():
     elif mvrl_args.model_type == "mvrl_no_distill":
         raise ValueError(f"wrong model_type: {mvrl_args.model_type}")
     elif mvrl_args.model_type == "mvrl":
-        assert training_args.in_batch_neg_score > 0, "this needs to be a high negative number"
         model = MVRLDenseModel.build(
             model_args,
             training_args,
