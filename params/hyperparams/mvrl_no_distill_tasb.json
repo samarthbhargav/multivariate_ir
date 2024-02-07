@@ -1,0 +1,43 @@
+{
+  "do_train": true,
+  "do_eval": true,
+  "model_name_or_path": "sebastian-hofstaetter/distilbert-dot-tas_b-b256-msmarco",
+  "untie_encoder": false,
+  "dataset_name": "Tevatron/msmarco-passage",
+  "train_dir": "/ivi/ilps/projects/multivariate_ir/data/msmarco/train",
+  "val_dir": "/ivi/ilps/projects/multivariate_ir/data/msmarco/validation",
+  "per_device_train_batch_size": 16,
+  "per_device_eval_batch_size": 128,
+  "train_n_passages": 30,
+  "q_max_len": 32,
+  "p_max_len": 256,
+  "max_steps": 150000,
+  "evaluation_strategy": "steps",
+  "eval_steps": 25000,
+  "save_steps": 25000,
+  "metric_for_best_model": "mrr",
+  "disable_distributed": true,
+  "warmup_ratio": 0.1,
+  "fp16": true,
+  "fp16_full_eval": true,
+  "data_cache_dir": "/ivi/ilps/projects/multivariate_ir/.hf_data_cache",
+  "cache_dir": "/ivi/ilps/projects/multivariate_ir/.hf_model_cache",
+  "exclude_title": true,
+  "learning_rate": [
+    1e-06,
+    3e-06,
+    5e-06,
+    7e-06,
+    1e-05,
+    1e-04
+  ],
+  "model_type": "mvrl_no_distill",
+  "add_var_token": true,
+  "var_activation": "softplus",
+  "var_activation_param_b": [
+    0.5,
+    1,
+    2.5,
+    7.5
+  ]
+}
