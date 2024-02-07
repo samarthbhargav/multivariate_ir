@@ -1,5 +1,5 @@
 {
-  "partition": "gpu:a6000:1",
+  "partition": "gpu:1",
   "device": "cuda",
   "n_cores": 12,
   "mem": "40G",
