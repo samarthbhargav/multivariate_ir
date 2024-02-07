@@ -8,7 +8,7 @@
 #SBATCH --time={time}
 #SBATCH --array=1-{n_jobs}%{n_parallel_jobs}
 #SBATCH --gres=gpu:a6000:{n_gpus}
-#SBATCH --exclude=ilps-cn111,ilps-cn108
+#SBATCH --exclude=ilps-cn108
 
 # Set-up the environment. double curly brace necessary: https://stackoverflow.com/a/5466478
 source ${{HOME}}\/.bashrc
