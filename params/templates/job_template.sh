@@ -12,6 +12,7 @@
 
 # Set-up the environment. double curly brace necessary: https://stackoverflow.com/a/5466478
 source ${{HOME}}\/.bashrc
+conda activate multivariate_ir
 
 # load param file
 HPARAMS_FILE={hyperparams_file}

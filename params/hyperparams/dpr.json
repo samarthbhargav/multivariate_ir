@@ -8,7 +8,7 @@
   "val_dir": "/ivi/ilps/projects/multivariate_ir/data/msmarco/validation",
   "per_device_train_batch_size": 16,
   "per_device_eval_batch_size": 128,
-  "train_n_passages": 30,
+  "train_n_passages": 31,
   "q_max_len": 32,
   "p_max_len": 256,
   "max_steps": 150000,
