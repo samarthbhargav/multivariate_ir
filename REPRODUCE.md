@@ -39,10 +39,11 @@ sh run_scripts/tas_b_zeroshot.sh
 
 #### Hyperparam search
 
+
 ```
-python make_job.py --model_config hyperparams/dpr.json --job_config job_config/job_config_4jobs.json \
-        --dest dpr_hs_db --exp_root_folder /ivi/ilps/projects/multivariate_ir/experiments --exp_name dpr_hs_db \
-        --job_template ./templates/job_template_a6000.sh --cmd "python -m tevatron.driver.train" 
+python make_job.py --model_config hyperparams/dpr.json --job_config job_config/job_config_6jobs.json \
+        --dest dpr_hs_db --exp_root_folder /home/sbhargav/multivariate_ir_experiments/experiments --exp_name dpr_hs_db \
+        --job_template ./templates/job_template_snellius.sh --cmd "python -m tevatron.driver.train" 
 ```
 
 
@@ -57,12 +58,12 @@ python make_job.py --model_config hyperparams/dpr.json --job_config job_config/j
 
 ```
 python make_job.py --model_config hyperparams/mvrl_no_distill_db.json --job_config job_config/job_config_2jobs.json \
-        --dest mvrl_nd_db --exp_root_folder /ivi/ilps/projects/multivariate_ir/experiments --exp_name mvrl_nd_db \
-        --job_template ./templates/job_template_a6000.sh --cmd "python -m tevatron.driver.train"
+        --dest mvrl_nd_db --exp_root_folder /home/sbhargav/multivariate_ir_experiments/experiments --exp_name mvrl_nd_db \
+        --job_template ./templates/job_template_snellius.sh --cmd "python -m tevatron.driver.train"
 
 python make_job.py --model_config hyperparams/mvrl_no_distill_tasb.json --job_config job_config/job_config_2jobs.json \
-        --dest mvrl_nd_tasb --exp_root_folder /ivi/ilps/projects/multivariate_ir/experiments --exp_name mvrl_nd_tasb \
-        --job_template ./templates/job_template_a6000.sh --cmd "python -m tevatron.driver.train"
+        --dest mvrl_nd_tasb --exp_root_folder /home/sbhargav/multivariate_ir_experiments/experiments --exp_name mvrl_nd_tasb \
+        --job_template ./templates/job_template_snellius.sh --cmd "python -m tevatron.driver.train"
 ```
 
 TODO
