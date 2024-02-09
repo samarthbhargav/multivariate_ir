@@ -155,7 +155,6 @@ class MVRLDenseModel(DenseModel):
         elif self.var_activation == "logvar":
             # assume that the output is the log-variance, not the variance
             self.projection_var = nn.Linear(output_dim, self.projection_dim, bias=False)
-            raise NotImplementedError(self.var_activation)
         else:
             raise NotImplementedError(self.var_activation)
 
@@ -175,8 +174,10 @@ class MVRLDenseModel(DenseModel):
             # just resizing once is enough, since they're both the same models
             self.lm_q.resize_token_embeddings(num_tokens)
 
-    def get_faiss_embed(self, mean_var, is_query, eps=1e-9):
+    def get_faiss_embed(self, mean_var, is_query, eps=1e-9, is_logvar=False):
         means, var = mean_var
+        if is_logvar:
+            var = var.exp()
         BZ = means.size(0)
         D = means.size(1)
 
@@ -224,10 +225,16 @@ class MVRLDenseModel(DenseModel):
 
         # inference
         if q_reps is None:
-            return EncoderOutput(q_reps=None, p_reps=self.get_faiss_embed(p_reps, is_query=False))
+            return EncoderOutput(q_reps=None,
+                                 p_reps=self.get_faiss_embed(p_reps,
+                                                             is_query=False,
+                                                             is_logvar=self.var_activation == "logvar"))
         # inference
         if p_reps is None:
-            return EncoderOutput(q_reps=self.get_faiss_embed(q_reps, is_query=True), p_reps=None)
+            return EncoderOutput(p_reps=None,
+                                 q_reps=self.get_faiss_embed(q_reps,
+                                                             is_query=True,
+                                                             is_logvar=self.var_activation == "logvar"))
 
         q_reps_mean, q_reps_var = q_reps
         p_reps_mean, p_reps_var = p_reps
@@ -261,8 +268,12 @@ class MVRLDenseModel(DenseModel):
         return EncoderOutput(
             loss=loss,
             scores=scores,
-            q_reps=self.get_faiss_embed((q_reps_mean, q_reps_var), is_query=True),
-            p_reps=self.get_faiss_embed((q_reps_mean, q_reps_var), is_query=False),
+            q_reps=self.get_faiss_embed((q_reps_mean, q_reps_var),
+                                        is_query=True,
+                                        is_logvar=self.var_activation == "logvar"),
+            p_reps=self.get_faiss_embed((q_reps_mean, q_reps_var),
+                                        is_query=False,
+                                        is_logvar=self.var_activation == "logvar"),
         )
 
     def encode_passage(self, psg):
@@ -296,12 +307,21 @@ class MVRLDenseModel(DenseModel):
 
     def compute_similarity(self, q_reps_mean, p_reps_mean, q_reps_var=None, p_reps_var=None):
         if self.embed_during_train:
-            return super().compute_similarity(q_reps=self.get_faiss_embed((q_reps_mean, q_reps_var), is_query=True),
-                                              p_reps=self.get_faiss_embed((p_reps_mean, p_reps_var), is_query=False))
+            return super().compute_similarity(q_reps=self.get_faiss_embed((q_reps_mean, q_reps_var),
+                                                                          is_query=True,
+                                                                          is_logvar=self.var_activation == "logvar"),
+                                              p_reps=self.get_faiss_embed((p_reps_mean, p_reps_var),
+                                                                          is_query=False,
+                                                                          is_logvar=self.var_activation == "logvar"))
 
         else:
+            if self.var_activation == "logvar":
+                q_reps_var = q_reps_var.exp()
+                p_reps_var = p_reps_var.exp()
+
             var1 = torch.clamp(q_reps_var, min=1e-10)
             var2 = torch.clamp(p_reps_var, min=1e-10)
+
             k = q_reps_mean.size(1)
 
             # shape = BZ_1xD
