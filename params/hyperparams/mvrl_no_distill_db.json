@@ -31,6 +31,7 @@
   ],
   "model_type": "mvrl_no_distill",
   "add_var_token": true,
+  "embed_formulation": "updated",
   "var_activation": "softplus",
   "var_activation_param_b": [
     0.5,

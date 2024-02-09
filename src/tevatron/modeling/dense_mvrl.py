@@ -160,7 +160,6 @@ class MVRLDenseModel(DenseModel):
 
         self.embed_during_train = embed_during_train
         self.embed_formulation = embed_formulation
-        assert self.embed_formulation in {"original", "updated", "mean"}
         logger.info(f"embed_during_train:{self.embed_during_train}, embed_formulation: {self.embed_formulation}")
         logger.info(f"projection_var: {self.projection_var}")
         logger.info(f"projection_mean: {self.projection_mean}")
@@ -213,6 +212,21 @@ class MVRLDenseModel(DenseModel):
                 rep[:, 2 * D + 1:] = (2 * means) / var
 
             assert not torch.isinf(rep).any() and not torch.isnan(rep).any(), "obtained infs in representation"
+            return rep
+        elif self.embed_formulation == "full_kl":
+            rep = torch.zeros(BZ, 3 * D + 2, device=means.device)
+            if is_query:
+                rep[:, 0] = 1
+                rep[:, 1] = torch.log(var).sum(1)
+                rep[:, 2:D + 2] = var
+                rep[:, D + 2:2 * D + 2] = means ** 2
+                rep[:, 2 * D + 2:] = means
+            else:
+                rep[:, 0] = - (torch.log(var) + means ** 2 / var).sum(1)
+                rep[:, 1] = 1
+                rep[:, 2:D + 2] = - 1 / var
+                rep[:, D + 2:2 * D + 2] = - 1 / var
+                rep[:, 2 * D + 2:] = (2 * means) / var
             return rep
         elif self.embed_formulation == "mean":
             return means

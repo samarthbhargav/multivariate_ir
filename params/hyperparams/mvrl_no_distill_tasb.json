@@ -30,6 +30,7 @@
     1e-04
   ],
   "model_type": "mvrl_no_distill",
+  "embed_formulation": "updated",
   "add_var_token": true,
   "var_activation": "softplus",
   "var_activation_param_b": [
