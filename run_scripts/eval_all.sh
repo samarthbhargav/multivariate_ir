@@ -94,15 +94,15 @@ do
 done
 
 
-python eval_run.py --input ${RESULTS_DIR}/dev_msmarco-passage.run \
+python ../eval_run.py --input ${RESULTS_DIR}/dev_msmarco-passage.run \
       --dataset msmarco-passage/dev/judged --metrics ${METRICS}  \
       --output ${RESULTS_DIR}/dev_msmarco-passage.json >>${LOG_FILE} 2>&1
 
-python eval_run.py --input ${RESULTS_DIR}/dl19_msmarco-passage.run \
+python ../eval_run.py --input ${RESULTS_DIR}/dl19_msmarco-passage.run \
       --dataset msmarco-passage/trec-dl-2019/judged --metrics ${METRICS}  \
       --output ${RESULTS_DIR}/dl19.json >>${LOG_FILE} 2>&1
 
-python eval_run.py --input ${RESULTS_DIR}/dl20_msmarco-passage.run \
+python ../eval_run.py --input ${RESULTS_DIR}/dl20_msmarco-passage.run \
       --dataset msmarco-passage/trec-dl-2020/judged --metrics ${METRICS}  \
       --output ${RESULTS_DIR}/dl20.json >>${LOG_FILE} 2>&1
 
@@ -147,7 +147,7 @@ python -m tevatron.faiss_retriever \
 --save_ranking_to ${RESULTS_DIR}/dev_scifact.run >>${LOG_FILE} 2>&1
 
 
-python eval_run.py --input ${RESULTS_DIR}/dev_scifact.run \
+python ../eval_run.py --input ${RESULTS_DIR}/dev_scifact.run \
 --hf_dataset Tevatron/scifact/dev --metrics ${METRICS}  \
 --output ${RESULTS_DIR}/dev_scifact.json >>${LOG_FILE} 2>&1
 
@@ -195,7 +195,7 @@ do
     --save_ranking_to ${RESULTS_DIR}/bier_test_${bds}.run >>${LOG_FILE} 2>&1
 
 
-    python eval_run.py --input ${RESULTS_DIR}/bier_test_${bds}.run \
+    python ../eval_run.py --input ${RESULTS_DIR}/bier_test_${bds}.run \
       --hf_dataset Tevatron/beir:${bds}/test --metrics ${METRICS}  \
       --output ${RESULTS_DIR}/bier_test_${bds}.json >>${LOG_FILE} 2>&1
 done
