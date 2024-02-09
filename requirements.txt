@@ -122,7 +122,6 @@ srsly==2.4.6
 sympy==1.12
 tabulate==0.9.0
 terminaltables==3.1.10
--e git+ssh://git@github.com/peustr/multivariate_ir.git@9879f93ad5456c6fa2e8d78b89600f4df3dbbb46#egg=tevatron
 textattack==0.3.8
 thinc==8.1.10
 threadpoolctl==3.1.0
