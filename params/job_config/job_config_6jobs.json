@@ -3,7 +3,7 @@
   "device": "cuda",
   "n_cores": 12,
   "mem": "40G",
-  "time": "24:00:00",
-  "n_parallel_jobs": 8,
+  "time": "96:00:00",
+  "n_parallel_jobs": 6,
   "n_gpus": 1
 }

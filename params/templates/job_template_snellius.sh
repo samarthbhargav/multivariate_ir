@@ -1,6 +1,6 @@
 #!/bin/sh
-#SBATCH -o /ivi/ilps/projects/multivariate_ir/logs/%A_%a.out
-#SBATCH -e /ivi/ilps/projects/multivariate_ir/logs/%A_%a.err
+#SBATCH -o /home/sbhargav/logs/mvrl/%A_%a.out
+#SBATCH -e /home/sbhargav/logs/mvrl/%A_%a.err
 #SBATCH -n1
 #SBATCH --partition={partition}
 #SBATCH -c{n_cores}
@@ -8,7 +8,6 @@
 #SBATCH --time={time}
 #SBATCH --array=1-{n_jobs}%{n_parallel_jobs}
 #SBATCH --gres=gpu:{n_gpus}
-#SBATCH --exclude=ilps-cn111,ilps-cn108
 
 # Set-up the environment. double curly brace necessary: https://stackoverflow.com/a/5466478
 source ${{HOME}}\/.bashrc

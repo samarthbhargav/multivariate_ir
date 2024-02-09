@@ -23,4 +23,3 @@ class DistilTrainingArguments(TevatronTrainingArguments):
     student_temp: float = field(default=1)
     listwise_kd: bool = field(default=False)
     softmax_norm: bool = field(default=False)
-

@@ -19,7 +19,6 @@ if __name__ == '__main__':
     dataset = datasets.load_dataset(
         "Tevatron/msmarco-passage",
         "default",
-        token=True,
         cache_dir=hf_cache_dir
     )
 

@@ -11,12 +11,15 @@ from torch.utils.data import DataLoader
 from transformers.trainer import Trainer
 from collections import defaultdict
 
+from tevatron.distillation.arguments import DistilTrainingArguments
+
 logger = logging.getLogger(__name__)
 
 
 class DistilTrainer(Trainer):
     def __init__(self, teacher_model, *args, **kwargs):
         super(DistilTrainer, self).__init__(*args, **kwargs)
+        self.args: DistilTrainingArguments
         self.teacher_model = teacher_model
         self._dist_loss_scale_factor = dist.get_world_size() if self.args.negatives_x_device else 1
         if self.args.negatives_x_device:
