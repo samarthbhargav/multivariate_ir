@@ -30,7 +30,7 @@ fi
 if [ ! -z "$DATA_CACHE_DIR" ]
 then
       echo "DATA_CACHE_DIR=${DATA_CACHE_DIR}"
-      EXTRA_ARGS="${EXTRA_ARGS} --cache_dir ${DATA_CACHE_DIR}"
+      EXTRA_ARGS="${EXTRA_ARGS} --data_cache_dir ${DATA_CACHE_DIR}"
 fi
 
 echo "EXTRA_ARGS=${EXTRA_ARGS}"
