@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class QPPArguments:
-    method: str = field(default="norm", metadata={"help": "how to compute QPP of a query"})
+    qpp_method: str = field(default="norm", metadata={"help": "how to compute QPP of a query"})
     qpp_save_path: str = field(default=None, metadata={"help": "location of predicted scores"})
 
 
@@ -113,17 +113,21 @@ def main():
                 if data_args.encode_is_qry:
                     q_reps = model.encode_query(batch)
                     q_reps_mean, q_reps_var = q_reps
-                    if qpp_args.method == "norm":
-                        predicted.append(torch.linalg.vector_norm(q_reps_var, dim=1))
+                    if qpp_args.qpp_method == "norm":
+                        predicted.append(torch.linalg.vector_norm(q_reps_var, dim=1).cpu().numpy())
+                    elif qpp_args.qpp_method == "det":
+                        predicted.append(q_reps_var.prod(1).cpu().numpy())
+                    elif qpp_args.qpp_method == "sum":
+                        predicted.append(q_reps_var.sum(1).cpu().numpy())
                     else:
-                        raise ValueError(qpp_args.method)
+                        raise ValueError(qpp_args.qpp_method)
                 else:
                     raise ValueError()
 
     predicted = np.concatenate(predicted).tolist()
 
     logger.info(f"saving to {qpp_args.qpp_save_path}")
-
+    assert len(predicted) == len(lookup_indices)
     with open(qpp_args.qpp_save_path, "w") as writer:
         for qid, pp in zip(lookup_indices, predicted):
             writer.write(f"{qid}\t{pp}\n")
