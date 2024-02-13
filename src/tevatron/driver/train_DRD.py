@@ -11,7 +11,7 @@ from transformers import AutoConfig, AutoTokenizer, HfArgumentParser, set_seed, 
 from tevatron.arguments import DataArguments, MVRLTrainingArguments
 from tevatron.distillation.arguments import DistilModelArguments, DistilTrainingArguments
 from tevatron.distillation.data import DistilTrainCollator, DistilTrainDataset, HFDistilTrainDataset
-from tevatron.distillation.trainer import DistilTrainer, ListwiseDistilTrainer
+from tevatron.distillation.trainer import DistilTrainer, ListwiseDistilTrainer, ListwiseDistilLabelsTrainer, ListwiseDistilPseudolabelsTrainer
 from tevatron.driver.train import compute_metrics
 from tevatron.modeling import DenseModel
 from tevatron.modeling.dense_mvrl import MVRLDenseModel
@@ -175,7 +175,7 @@ def main():
     else:
         callbacks = None
 
-    if training_args.listwise_kd:
+    if training_args.kd_type== "drd":
         trainer = ListwiseDistilTrainer(
             teacher_model=teacher_model,
             model=model,
@@ -189,7 +189,37 @@ def main():
                 max_q_len=data_args.q_max_len
             ),
         )
-    else:
+    elif training_args.kd_type == "drd_labels":
+        trainer = ListwiseDistilLabelsTrainer(
+            teacher_model=teacher_model,
+            data_args=data_args,
+            model=model,
+            args=training_args,
+            train_dataset=train_dataset,
+            eval_dataset=val_dataset,
+            callbacks=callbacks,
+            compute_metrics=compute_metrics,
+            data_collator=DistilTrainCollator(
+                tokenizer, teacher_tokenizer=teacher_tokenizer, max_p_len=data_args.p_max_len,
+                max_q_len=data_args.q_max_len
+            ),
+        )
+    elif training_args.kd_type == "cldrd":
+        trainer = ListwiseDistilPseudolabelsTrainer(
+            teacher_model=teacher_model,
+            data_args=data_args,
+            model=model,
+            args=training_args,
+            train_dataset=train_dataset,
+            eval_dataset=val_dataset,
+            callbacks=callbacks,
+            compute_metrics=compute_metrics,
+            data_collator=DistilTrainCollator(
+                tokenizer, teacher_tokenizer=teacher_tokenizer, max_p_len=data_args.p_max_len,
+                max_q_len=data_args.q_max_len
+            ),
+        )
+    elif training_args.kd_type == "kl":
         trainer = DistilTrainer(
             teacher_model=teacher_model,
             model=model,

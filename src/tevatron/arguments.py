@@ -89,6 +89,8 @@ class DataArguments:
         },
     )
 
+    pseudolabels: bool = field(default=False)
+
     def __post_init__(self):
         if self.dataset_name is not None:
             info = self.dataset_name.split("/")
