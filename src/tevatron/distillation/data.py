@@ -265,6 +265,7 @@ class DistilTrainDataset(Dataset):
         encoded_student_passages = []
         encoded_teacher_pairs = []
 
+        
         if self.data_args.positive_passage_no_shuffle:
             pos_psg_idx = 0
         else:
@@ -285,7 +286,13 @@ class DistilTrainDataset(Dataset):
         else:
             negs_idxs = random.sample(list(range(len(student_negatives))), negative_size)
 
+        student_negs_token_ids = []
+        teacher_negs_token_ids = []
         for neg_psg_idx in negs_idxs:
+            
+            student_negs_token_ids.append(student_negatives[neg_psg_idx])
+            teacher_negs_token_ids.append(teacher_negatives[neg_psg_idx])
+
             encoded_teacher_pairs.append(self.create_teacher_example(teacher_qry, teacher_negatives[neg_psg_idx]))
             encoded_student_passages.append(self.create_student_example(student_negatives[neg_psg_idx]))
             if self.is_validation:
@@ -293,10 +300,20 @@ class DistilTrainDataset(Dataset):
                     (group["eval_meta"]["query_id"], group["eval_meta"]["negative_passages"][neg_psg_idx], 0)
                 )
 
+        # to train with pseudolabels only, discard the true positive from qrel
+        if (not self.is_validation) and (self.data_args.ann_neg_num > 0) and self.data_args.pseudolabels:
+            encoded_student_passages = []
+            encoded_teacher_pairs = []
+
+
         # don't load ANN negatives for validation
         if not self.is_validation and self.data_args.ann_neg_num > 0:
             student_ann_negatives = group["student_ann_negatives"]
             teacher_ann_negatives = group["teacher_ann_negatives"]
+
+            # remove hard negatives that are already in the soft negatives
+            student_ann_negatives = [token_ids for token_ids in student_ann_negatives if token_ids not in student_negs_token_ids] 
+            teacher_ann_negatives = [token_ids for token_ids in teacher_ann_negatives if token_ids not in teacher_negs_token_ids] 
 
             ann_negative_size = self.data_args.ann_neg_num
             if len(student_ann_negatives) < ann_negative_size:
