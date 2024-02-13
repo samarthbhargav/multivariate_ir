@@ -79,4 +79,117 @@ TODO
 
 
 
+## QPP 
 
+1. Preprocess: 
+    
+    ```
+        python -m qpp.preprocess --path datasets/trec-dl/
+    ```
+   
+2. Run QPP on the MVRL models:
+    ```
+    TODO
+    ```
+3. Build actual performance files:
+
+    BM25:
+    ```
+       
+    python -m pyserini.index.lucene \
+            --collection JsonCollection \
+            --generator DefaultLuceneDocumentGenerator \
+            --threads 16 \
+            --storePositions \
+            --storeDocvectors \
+            --storeRaw \
+            -input datasets/trec-dl/corpus/ \
+            -index datasets/trec-dl/corpus_index/
+    
+    
+    python -m pyserini.search.lucene \
+            --bm25 --hits 1000 --threads 16 --batch-size 64 \
+            --index datasets/trec-dl/corpus_index/ \
+            --topics datasets/trec-dl/dl19/queries.tsv \
+            --output datasets/trec-dl/runs/dl19-bm25-1000.txt
+    
+    python -m pyserini.search.lucene \
+            --bm25 --hits 1000 --threads 16 --batch-size 64 \
+            --index datasets/trec-dl/corpus_index/ \
+            --topics datasets/trec-dl/dl20/queries.tsv \
+            --output datasets/trec-dl/runs/dl20-bm25-1000.txt
+    
+    
+    mkdir -p datasets/actual_performances/
+    
+    python -u evaluation_retrieval.py  \
+            --run datasets/trec-dl/runs/dl19-bm25-1000.txt \
+            --qrel datasets/trec-dl/dl19/qrel.txt \
+            --output_path datasets/actual_performances/dl19_bm25.json
+    
+    python -u evaluation_retrieval.py  \
+            --run datasets/trec-dl/runs/dl20-bm25-1000.txt \
+            --qrel datasets/trec-dl/dl20/qrel.txt \
+            --output_path datasets/actual_performances/dl20_bm25.json  
+ 
+
+    ```
+   
+   Convert run files from DPR & TASB to the required format as well:
+   ```
+        export QPP_METRIC="ndcg_cut_10"
+        export QPP_METRIC_NAME="ndcg@10" 
+        python -m qpp.convert_run_for_qpp --path runs/dpr/dl19.run \
+            --output datasets/actual_performances/dl19_dpr.json \
+            --metric ${QPP_METRIC} --metric_name ${QPP_METRIC_NAME}\
+            --ir_dataset_name msmarco-passage/trec-dl-2019/judged
+   
+        python -m qpp.convert_run_for_qpp --path runs/dpr/dl20.run \
+            --output datasets/actual_performances/dl20_dpr.json \
+            --metric ${QPP_METRIC} --metric_name ${QPP_METRIC_NAME}\
+            --ir_dataset_name msmarco-passage/trec-dl-2020/judged
+   
+       python -m qpp.convert_run_for_qpp --path runs/tasb/dl19.run \
+                --output datasets/actual_performances/dl19_tasb.json \
+                --metric ${QPP_METRIC} --metric_name ${QPP_METRIC_NAME}\
+                --ir_dataset_name msmarco-passage/trec-dl-2019/judged
+   
+       python -m qpp.convert_run_for_qpp --path runs/tasb/dl20.run \
+                --output datasets/actual_performances/dl20_tasb.json \
+                --metric ${QPP_METRIC} --metric_name ${QPP_METRIC_NAME}\
+                --ir_dataset_name msmarco-passage/trec-dl-2020/judged
+ 
+   ```
+   
+3. Run Baselines & Methods
+   
+   Run QPP pre-retrieval baselines :
+   ```
+        # run this from the repo root
+        sh run_scripts/qpp_baselines.sh
+   ```
+   
+   Run QPP on MVRL models
+   ```
+    qpp_output/pre-retrieval/dl19/MVRL_
+   ```
+   
+4. Evaluate
+    ```
+   python -m qpp.evaluate --actual bm25,datasets/actual_performances/dl19_bm25.json \
+                           dpr,datasets/actual_performances/dl19_dpr.json \
+                           tasb,datasets/actual_performances/dl19_tasb.json \
+                           --predicted_dir qpp_output/pre-retrieval/dl19/ \
+                           --metric ndcg@10 \
+                           --output qpp_output/dl19.csv
+   
+   python -m qpp.evaluate --actual bm25,datasets/actual_performances/dl20_bm25.json \
+                           dpr,datasets/actual_performances/dl20_dpr.json \
+                           tasb,datasets/actual_performances/dl20_tasb.json \
+                           --predicted_dir qpp_output/pre-retrieval/dl20/ \
+                           --metric ndcg@10 \
+                           --output qpp_output/dl20.csv
+    ```
+    
+                           
+   

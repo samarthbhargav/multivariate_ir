@@ -15,3 +15,5 @@ msmarco/
 
 
 *.DS_Store
+datasets
+qpp_output

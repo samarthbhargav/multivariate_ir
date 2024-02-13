@@ -11,7 +11,7 @@ from transformers import AutoConfig, AutoTokenizer, HfArgumentParser
 from tevatron.arguments import DataArguments, ModelArguments, MVRLTrainingArguments
 from tevatron.arguments import TevatronTrainingArguments as TrainingArguments
 from tevatron.data import EncodeCollator, EncodeDataset
-from tevatron.datasets import HFQueryDataset
+from tevatron.datasets import HFQueryDataset, HFCorpusDataset
 
 from tevatron.modeling.dense_mvrl import MVRLDenseModel
 
@@ -80,10 +80,9 @@ def main():
             tokenizer=tokenizer, data_args=data_args, cache_dir=data_args.data_cache_dir or model_args.cache_dir
         )
     else:
-        raise ValueError("Only supported for queries")
-        # encode_dataset = HFCorpusDataset(
-        #     tokenizer=tokenizer, data_args=data_args, cache_dir=data_args.data_cache_dir or model_args.cache_dir
-        # )
+        encode_dataset = HFCorpusDataset(
+            tokenizer=tokenizer, data_args=data_args, cache_dir=data_args.data_cache_dir or model_args.cache_dir
+        )
 
     encode_dataset = EncodeDataset(
         encode_dataset.process(data_args.encode_num_shard, data_args.encode_shard_index),
@@ -111,18 +110,19 @@ def main():
                 for k, v in batch.items():
                     batch[k] = v.to(training_args.device)
                 if data_args.encode_is_qry:
-                    q_reps = model.encode_query(batch)
-                    q_reps_mean, q_reps_var = q_reps
-                    if qpp_args.qpp_method == "norm":
-                        predicted.append(torch.linalg.vector_norm(q_reps_var, dim=1).cpu().numpy())
-                    elif qpp_args.qpp_method == "det":
-                        predicted.append(q_reps_var.prod(1).cpu().numpy())
-                    elif qpp_args.qpp_method == "sum":
-                        predicted.append(q_reps_var.sum(1).cpu().numpy())
-                    else:
-                        raise ValueError(qpp_args.qpp_method)
+                    reps = model.encode_query(batch)
                 else:
-                    raise ValueError()
+                    reps = model.encode_passage(batch)
+
+                reps_mean, reps_var = reps
+                if qpp_args.qpp_method == "norm":
+                    predicted.append(torch.linalg.vector_norm(reps_var, dim=1).cpu().numpy())
+                elif qpp_args.qpp_method == "det":
+                    predicted.append(reps_var.prod(1).cpu().numpy())
+                elif qpp_args.qpp_method == "sum":
+                    predicted.append(reps_var.sum(1).cpu().numpy())
+                else:
+                    raise ValueError(qpp_args.qpp_method)
 
     predicted = np.concatenate(predicted).tolist()
 
