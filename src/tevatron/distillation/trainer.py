@@ -389,11 +389,8 @@ class ListwiseDistilPseudolabelsTrainer(DistilTrainer):
         # labels w.r.t teacher
         teacher_scores = torch.ones(student_scores.size(0), self.labels.size(0)) * self.labels
         teacher_scores = teacher_scores.to(student_scores.device)
-        teacher_scores = teacher_scores.view(-1, 1)
 
-        index = torch.arange(teacher_scores.size(0), device=teacher_scores.device)
-
-        teacher_scores = teacher_scores.view(student_scores.size(0), -1)
+        index = torch.arange(teacher_scores.size(0)*teacher_scores.size(1), device=teacher_scores.device)
         student_scores = torch.gather(student_scores, 1, index.view(student_scores.size(0), -1))
 
         if self.args.softmax_norm:
