@@ -26,9 +26,9 @@ python -m tevatron.driver.encode \
   --model_name_or_path ${MODEL_NAME} \
   --fp16 \
   --per_device_eval_batch_size ${BATCH_SIZE} \
-  --p_max_len 128 \
+  --p_max_len 200 \
   --exclude_title \
-  --q_max_len 32 \
+  --q_max_len 30 \
   --dataset_name Tevatron/msmarco-passage-corpus \
   --encoded_save_path ${MODEL_OUT}/corpus_msmarco-passage.pkl \
   --cache_dir ${MODEL_CACHE_DIR} \
@@ -46,9 +46,9 @@ do
   --model_name_or_path ${MODEL_NAME} \
   --fp16 \
   --per_device_eval_batch_size ${BATCH_SIZE} \
-  --p_max_len 128 \
+  --p_max_len 200 \
   --exclude_title \
-  --q_max_len 32 \
+  --q_max_len 30 \
   --encode_is_qry \
   --dataset_name Tevatron/msmarco-passage/${split} \
   --encoded_save_path ${MODEL_OUT}/${split}_msmarco-passage.pkl \
