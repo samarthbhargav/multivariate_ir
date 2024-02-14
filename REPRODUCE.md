@@ -71,11 +71,87 @@ python make_job.py --model_config hyperparams/mvrl_no_distill_db.json \
         --exp_name mvrl_nd_db \
         --job_template ./templates/job_template_snellius.sh \
         --cmd "python -m tevatron.driver.train"
+python best_model.py /scratch-shared/sbhargav/multivariate_ir_experiments/experiments/mvrl_nd_db/
+
+
+python make_job.py --model_config hyperparams/mvrl_no_distill_logvar_db.json \
+        --job_config job_config/job_config_6jobs.json \
+        --dest mvrl_nd_db_logvar \
+        --exp_root_folder /scratch-shared/sbhargav/multivariate_ir_experiments/experiments \
+        --exp_name mvrl_nd_db_logvar \
+        --job_template ./templates/job_template_snellius.sh \
+        --cmd "python -m tevatron.driver.train"
 
 ```
 
-TODO
-#### Obtaining run
+MVRL with TAS-B checkpoint
+```
+srun -p gpu --time=96:00:00 --mem=40G -c12 --gres=gpu:1 python -m tevatron.driver.train \
+--do_train \
+--do_eval  \
+--model_name_or_path distilbert-base-uncased \
+--dataset_name Tevatron/msmarco-passage \
+--data_cache_dir /scratch-shared/sbhargav/.hf_data_cache \
+--cache_dir /scratch-shared/sbhargav/.hf_model_cache \
+--train_dir /scratch-shared/sbhargav/data/msmarco/train \
+--val_dir /scratch-shared/sbhargav/data/msmarco/validation \
+--per_device_train_batch_size 14 \
+--per_device_eval_batch_size 105 \
+--train_n_passages 31 \
+--q_max_len 32 \
+--p_max_len 256 \
+--max_steps 150000 \
+--evaluation_strategy steps \
+--eval_steps 25000 \
+--save_steps 25000 \
+--metric_for_best_model mrr \
+--disable_distributed  \
+--warmup_ratio 0.1 \
+--fp16  --fp16_full_eval  \
+--exclude_title  \
+--model_type mvrl_no_distill \
+--add_var_token  \
+--embed_formulation updated \
+--var_activation softplus \
+--learning_rate 7e-06 \
+--var_activation_param_b 2.5 \
+--output_dir /scratch-shared/sbhargav/multivariate_ir_experiments/experiments/mvrl_nd_tasb/ >> tasb_train.log 2>&1
+
+```
+
+
+#### Evaluation
+
+```
+
+srun -p gpu --gres=gpu:1 --mem=128G -c12 --time=48:00:00 sh eval_snellius.sh \
+            /scratch-shared/sbhargav/multivariate_ir_experiments/experiments/mvrl_nd_db/14 \
+            /scratch-shared/sbhargav/multivariate_ir_experiments/experiments/mvrl_nd_db/14/original \
+            "--model_type mvrl_no_distill --add_var_token  --embed_formulation original --var_activation softplus --var_activation_param_b 2.5" \
+            /scratch-shared/sbhargav/multivariate_ir_experiments/experiments/mvrl_nd_db/14/original/eval.log 
+
+srun -p gpu --gres=gpu:1 --mem=128G -c12 --time=48:00:00 sh eval_snellius.sh \
+            /scratch-shared/sbhargav/multivariate_ir_experiments/experiments/mvrl_nd_db/14 \
+            /scratch-shared/sbhargav/multivariate_ir_experiments/experiments/mvrl_nd_db/14/updated \
+            "--model_type mvrl_no_distill --add_var_token  --embed_formulation updated --var_activation softplus --var_activation_param_b 2.5" \
+            /scratch-shared/sbhargav/multivariate_ir_experiments/experiments/mvrl_nd_db/14/updated/eval.log
+
+srun -p gpu --gres=gpu:1 --mem=24G -c12 --time=48:00:00 sh eval_snellius.sh \
+            /scratch-shared/sbhargav/multivariate_ir_experiments/experiments/mvrl_nd_db/14 \
+            /scratch-shared/sbhargav/multivariate_ir_experiments/experiments/mvrl_nd_db/14/mean \
+            "--model_type mvrl_no_distill --add_var_token  --embed_formulation mean --var_activation softplus --var_activation_param_b 2.5" \
+            /scratch-shared/sbhargav/multivariate_ir_experiments/experiments/mvrl_nd_db/14/mean/eval.log
+
+
+srun -p gpu --gres=gpu:1 --mem=24G --time=01:00:00 sh qpp_eval_model.sh \
+        /scratch-shared/sbhargav/multivariate_ir_experiments/experiments/mvrl_nd_db/14 \
+        /scratch-shared/sbhargav/multivariate_ir_experiments/experiments/mvrl_nd_db/14/qpp \
+        "--model_type mvrl_no_distill --add_var_token --var_activation softplus --var_activation_param_b 2.5" \
+        /scratch-shared/sbhargav/multivariate_ir_experiments/experiments/mvrl_nd_db/14/qpp/qpp.log 
+
+```
+
+#### QPP Evaluation
 
 
 
@@ -193,3 +269,9 @@ TODO
     
                            
    
+### Data Prep for perturbation
+```
+
+
+```
+

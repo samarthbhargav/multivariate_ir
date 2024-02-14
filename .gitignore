@@ -17,3 +17,7 @@ msmarco/
 *.DS_Store
 datasets
 qpp_output
+
+msmarco-small-perturbed-*
+msmarco-med-perturbed-*
+msmarco-perturbed-*

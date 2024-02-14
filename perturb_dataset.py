@@ -41,6 +41,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser("perturb_dataset")
     parser.add_argument("--hf_disk_dataset", default=None, help="path to dataset stored on disk")
     parser.add_argument("--hf_dataset", default=None, help="hf dataset name")
+    parser.add_argument("--hf_dataset_split", default=None, help="hf dataset name")
     parser.add_argument("--is_query", action="store_true", default=False)
     parser.add_argument("--word_swap_pct", required=True, type=float)
     parser.add_argument("--n_proc", required=True, type=int)
@@ -48,7 +49,7 @@ if __name__ == '__main__':
     parser.add_argument("--out", required=True)
 
     args = parser.parse_args()
-    
+
     random.seed(args.seed)
     np.random.seed(args.seed)
     torch.manual_seed(args.seed)
@@ -58,7 +59,7 @@ if __name__ == '__main__':
     if args.hf_disk_dataset is not None:
         dataset = datasets.load_from_disk(args.hf_disk_dataset)
     else:
-        dataset = datasets.load_dataset(args.hf_dataset)
+        dataset = datasets.load_dataset(args.hf_dataset, split=args.hf_dataset_split)
 
     perturb_fn = perturb_query if args.is_query else perturb_document
     print(f"[{args.word_swap_pct}]input: {dataset}; output: {args.out}")
