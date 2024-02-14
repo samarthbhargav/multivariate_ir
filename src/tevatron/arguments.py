@@ -90,6 +90,12 @@ class DataArguments:
     )
 
     pseudolabels: bool = field(default=False)
+    group_1_size: int = field(default=5)
+    group_2_size: int = field(default=45)
+    group_3_size: int = field(default=150)
+    group_1: int = field(default=5)
+    group_2: int = field(default=12)
+    group_3: int = field(default=13)
 
     def __post_init__(self):
         if self.dataset_name is not None:
@@ -131,6 +137,8 @@ class TevatronTrainingArguments(TrainingArguments):
     early_stopping_patience: int = field(default=0,
                                          metadata={"help": "If > 0, enables early stopping, set to patience "})
     early_stopping_threshold: float = field(default=0, metadata={"help": "early stopping threshold"})
+
+    load_model_from_disk: bool = field(default=False, metadata={"help": "load model that was trained with tevatron"})
 
 
 @dataclass

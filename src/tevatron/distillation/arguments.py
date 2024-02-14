@@ -24,6 +24,3 @@ class DistilTrainingArguments(TevatronTrainingArguments):
     kd_type: str = field(default="cldrd") #kl, cldrd, drd_labels, drd
     softmax_norm: bool = field(default=False)
     kd_in_batch_negs: bool = field(default=False)
-    group_1: int = field(default=5)
-    group_2: int = field(default=12)
-    group_3: int = field(default=13)

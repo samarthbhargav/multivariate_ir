@@ -1,16 +1,14 @@
+import datasets
 import logging
 import random
 from dataclasses import dataclass
-from typing import List, Tuple
-
-import datasets
 from datasets import load_dataset, load_from_disk
 from tevatron.arguments import DataArguments
+from tevatron.datasets.preprocessor import VAR_PREFIX
 from torch.utils.data import Dataset
 from transformers import BatchEncoding, PreTrainedTokenizer
 from transformers.tokenization_utils_base import PreTrainedTokenizerBase
-
-from tevatron.datasets.preprocessor import VAR_PREFIX
+from typing import List, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -265,71 +263,86 @@ class DistilTrainDataset(Dataset):
         encoded_student_passages = []
         encoded_teacher_pairs = []
 
-        
-        if self.data_args.positive_passage_no_shuffle:
-            pos_psg_idx = 0
-        else:
-            pos_psg_idx = random.sample(list(range(len(student_positives))), 1)[0]
-        encoded_teacher_pairs.append(self.create_teacher_example(teacher_qry, teacher_positives[pos_psg_idx]))
-        encoded_student_passages.append(self.create_student_example(student_positives[pos_psg_idx]))
-
-        if self.is_validation:
-            labels = [
-                (group["eval_meta"]["query_id"], group["eval_meta"]["positive_passages"][pos_psg_idx], 1)
-            ]
-
-        negative_size = self.data_args.train_n_passages - 1
-        if len(student_negatives) < negative_size:
-            negs_idxs = random.choices(list(range(len(student_negatives))), k=negative_size)
-        elif self.data_args.negative_passage_no_shuffle:
-            negs_idxs = list(range(len(student_negatives)))[:negative_size]
-        else:
-            negs_idxs = random.sample(list(range(len(student_negatives))), negative_size)
-
-        student_negs_token_ids = []
-        teacher_negs_token_ids = []
-        for neg_psg_idx in negs_idxs:
-            
-            student_negs_token_ids.append(student_negatives[neg_psg_idx])
-            teacher_negs_token_ids.append(teacher_negatives[neg_psg_idx])
-
-            encoded_teacher_pairs.append(self.create_teacher_example(teacher_qry, teacher_negatives[neg_psg_idx]))
-            encoded_student_passages.append(self.create_student_example(student_negatives[neg_psg_idx]))
-            if self.is_validation:
-                labels.append(
-                    (group["eval_meta"]["query_id"], group["eval_meta"]["negative_passages"][neg_psg_idx], 0)
-                )
-
-        # to train with pseudolabels only, discard the true positive from qrel
         if (not self.is_validation) and (self.data_args.ann_neg_num > 0) and self.data_args.pseudolabels:
-            encoded_student_passages = []
-            encoded_teacher_pairs = []
+            # to train with pseudolabels only, discard the true positive from qrel
+            # and only work on the samples found at ann_negatives
 
-
-        # don't load ANN negatives for validation
-        if not self.is_validation and self.data_args.ann_neg_num > 0:
             student_ann_negatives = group["student_ann_negatives"]
             teacher_ann_negatives = group["teacher_ann_negatives"]
 
-            # remove hard negatives that are already in the soft negatives
-            student_ann_negatives = [token_ids for token_ids in student_ann_negatives if token_ids not in student_negs_token_ids] 
-            teacher_ann_negatives = [token_ids for token_ids in teacher_ann_negatives if token_ids not in teacher_negs_token_ids] 
+            idxs = random.choices(list(range(self.data_args.group_1_size)), k=self.data_args.group_1)
+            idxs.extend(random.choices(list(range(self.data_args.group_1_size, self.data_args.group_2_size)),
+                                       k=self.data_args.group_2))
+            idxs.extend(random.choices(list(range(self.data_args.group_1_size + self.data_args.group_2_size,
+                                                  self.data_args.group_1_size + self.data_args.group_2_size + self.data_args.group_3_size)),
+                                       k=self.data_args.group_3))
 
-            ann_negative_size = self.data_args.ann_neg_num
-            if len(student_ann_negatives) < ann_negative_size:
-                negs_idxs = random.choices(list(range(len(student_ann_negatives))), k=ann_negative_size)
-            elif self.data_args.negative_passage_no_shuffle:
-                negs_idxs = list(range(len(student_ann_negatives)))[:ann_negative_size]
-            else:
-                negs_idxs = random.sample(list(range(len(student_ann_negatives))), ann_negative_size)
-
-            for neg_psg_idx in negs_idxs:
+            for psg_idx in idxs:
                 encoded_teacher_pairs.append(
-                    self.create_teacher_example(teacher_qry, teacher_ann_negatives[neg_psg_idx]))
-                encoded_student_passages.append(self.create_student_example(student_ann_negatives[neg_psg_idx]))
+                    self.create_teacher_example(teacher_qry, teacher_ann_negatives[psg_idx]))
+                encoded_student_passages.append(self.create_student_example(student_ann_negatives[psg_idx]))
 
-        if self.is_validation:
-            return encoded_student_query, encoded_student_passages, encoded_teacher_pairs, labels
+        else:
+            if self.data_args.positive_passage_no_shuffle:
+                pos_psg_idx = 0
+            else:
+                pos_psg_idx = random.sample(list(range(len(student_positives))), 1)[0]
+            encoded_teacher_pairs.append(self.create_teacher_example(teacher_qry, teacher_positives[pos_psg_idx]))
+            encoded_student_passages.append(self.create_student_example(student_positives[pos_psg_idx]))
+
+            if self.is_validation:
+                labels = [
+                    (group["eval_meta"]["query_id"], group["eval_meta"]["positive_passages"][pos_psg_idx], 1)
+                ]
+
+            negative_size = self.data_args.train_n_passages - 1
+            if len(student_negatives) < negative_size:
+                negs_idxs = random.choices(list(range(len(student_negatives))), k=negative_size)
+            elif self.data_args.negative_passage_no_shuffle:
+                negs_idxs = list(range(len(student_negatives)))[:negative_size]
+            else:
+                negs_idxs = random.sample(list(range(len(student_negatives))), negative_size)
+
+            student_negs_token_ids = []
+            teacher_negs_token_ids = []
+            for neg_psg_idx in negs_idxs:
+
+                student_negs_token_ids.append(student_negatives[neg_psg_idx])
+                teacher_negs_token_ids.append(teacher_negatives[neg_psg_idx])
+
+                encoded_teacher_pairs.append(self.create_teacher_example(teacher_qry, teacher_negatives[neg_psg_idx]))
+                encoded_student_passages.append(self.create_student_example(student_negatives[neg_psg_idx]))
+                if self.is_validation:
+                    labels.append(
+                        (group["eval_meta"]["query_id"], group["eval_meta"]["negative_passages"][neg_psg_idx], 0)
+                    )
+
+            # don't load ANN negatives for validation
+            if not self.is_validation and self.data_args.ann_neg_num > 0:
+                student_ann_negatives = group["student_ann_negatives"]
+                teacher_ann_negatives = group["teacher_ann_negatives"]
+
+                # remove hard negatives that are already in the soft negatives
+                student_ann_negatives = [token_ids for token_ids in student_ann_negatives if
+                                         token_ids not in student_negs_token_ids]
+                teacher_ann_negatives = [token_ids for token_ids in teacher_ann_negatives if
+                                         token_ids not in teacher_negs_token_ids]
+
+                ann_negative_size = self.data_args.ann_neg_num
+                if len(student_ann_negatives) < ann_negative_size:
+                    negs_idxs = random.choices(list(range(len(student_ann_negatives))), k=ann_negative_size)
+                elif self.data_args.negative_passage_no_shuffle:
+                    negs_idxs = list(range(len(student_ann_negatives)))[:ann_negative_size]
+                else:
+                    negs_idxs = random.sample(list(range(len(student_ann_negatives))), ann_negative_size)
+
+                for neg_psg_idx in negs_idxs:
+                    encoded_teacher_pairs.append(
+                        self.create_teacher_example(teacher_qry, teacher_ann_negatives[neg_psg_idx]))
+                    encoded_student_passages.append(self.create_student_example(student_ann_negatives[neg_psg_idx]))
+
+            if self.is_validation:
+                return encoded_student_query, encoded_student_passages, encoded_teacher_pairs, labels
 
         return encoded_student_query, encoded_student_passages, encoded_teacher_pairs
 
@@ -382,3 +395,4 @@ class DistilTrainCollator:
         else:
             labels = [f[3] for f in features]
             return q_collated, d_collated, p_collated, labels
+
