@@ -12,6 +12,22 @@ then
   exit -1
 fi
 
+if [ ! -z "$MODEL_CACHE_DIR" ]
+then
+      echo "MODEL_CACHE_DIR=${MODEL_CACHE_DIR}"
+      EXTRA_ARGS="${EXTRA_ARGS} --cache_dir ${MODEL_CACHE_DIR}"
+fi
+
+if [ ! -z "$DATA_CACHE_DIR" ]
+then
+      echo "DATA_CACHE_DIR=${DATA_CACHE_DIR}"
+      EXTRA_ARGS="${EXTRA_ARGS} --data_cache_dir ${DATA_CACHE_DIR}"
+fi
+
+echo "EXTRA_ARGS=${EXTRA_ARGS}"
+
+mkdir -p ${MODEL_OUT}
+
 
 TEST_SETS=('dl19' 'dl20')
 for split in "${TEST_SETS[@]}"
