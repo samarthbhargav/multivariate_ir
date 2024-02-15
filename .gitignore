@@ -2,6 +2,7 @@
 .python-version
 __pycache__/
 *.egg-info/
+runs
 
 *.job
 *.params

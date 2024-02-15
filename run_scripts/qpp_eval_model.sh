@@ -77,14 +77,30 @@ do
   --q_max_len 32 \
   --hf_disk_dataset ${DATA_PATH}/msmarco/${split} \
   ${EXTRA_ARGS} >>${LOG_FILE} 2>&1
-done
 
+
+  for perc in "${PERCS[@]}"
+  do
+      echo "${split} -- ${perc}"
+      python -m tevatron.driver.qpp \
+      --output_dir=${MODEL_OUT} \
+      --model_name_or_path ${MODEL_PATH_OR_NAME} \
+      --qpp_save_path ${MODEL_OUT}/msmarco-perturbed-${perc}-${split}.txt \
+      --fp16 \
+      --per_device_eval_batch_size ${BATCH_SIZE} \
+      --p_max_len 256 \
+      --encode_is_qry \
+      --exclude_title \
+      --q_max_len 32 \
+      --hf_disk_dataset ${DATA_PATH}/msmarco-perturbed-${perc}/${split} \
+      ${EXTRA_ARGS} >>${LOG_FILE} 2>&1
+  done
+done
 
 TEST_SETS=('dl19' 'dl20' 'dev')
 for split in "${TEST_SETS[@]}"
 do
   echo "eval ${split}"
-  # get embeds
   python -m tevatron.driver.qpp \
   --output_dir=${MODEL_OUT} \
   --model_name_or_path ${MODEL_PATH_OR_NAME} \
