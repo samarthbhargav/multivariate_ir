@@ -358,7 +358,7 @@ class ListwiseDistilPseudolabelsTrainer(DistilTrainer):
         super(ListwiseDistilPseudolabelsTrainer, self).__init__(teacher_model, *args, **kwargs)
         self.data_args = data_args
 
-        group1_size, group2_size, group3_size = self.args.group_1, self.args.group_2, self.args.group_3
+        group1_size, group2_size, group3_size = self.data_args.group_1, self.data_args.group_2, self.data_args.group_3
         labels = torch.ones(group1_size + group2_size + group3_size) * (
                 1 / torch.arange(1, group1_size + group2_size + group3_size + 1))
 
@@ -378,15 +378,15 @@ class ListwiseDistilPseudolabelsTrainer(DistilTrainer):
 
         student_scores = model(query=query, passage=passage).scores
 
-        # with torch.no_grad():
+        #with torch.no_grad():
         #    teacher_scores = self.teacher_model(pair=pair).scores
         #    if self.args.negatives_x_device:
         #         teacher_scores = self._dist_gather_tensor(teacher_scores)
 
         #    # CL-DRD approach: pseudolabels instead of raw teacher scores
         #    teacher_scores = teacher_scores.view(student_scores.size(0), -1)
-
         # labels w.r.t teacher
+
         teacher_scores = torch.ones(student_scores.size(0), self.labels.size(0)) * self.labels
         teacher_scores = teacher_scores.to(student_scores.device)
 
@@ -437,7 +437,7 @@ class ListwiseDistilPseudolabelsTrainer(DistilTrainer):
 #
 #     def compute_loss(self, model, inputs):
 #         query, passage, pair = inputs
-#         group1_size, group2_size, group3_size = self.args.group_1, self.args.group_2, self.args.group_3
+#         group1_size, group2_size, group3_size = self.data_args.group_1, self.data_args.group_2, self.data_args.group_3
 #
 #         student_scores = model(query=query, passage=passage).scores
 #
@@ -514,4 +514,3 @@ class ListwiseDistilPseudolabelsTrainer(DistilTrainer):
 #         loss = torch.mean(losses[pairs_mask])
 #
 #         return loss
-

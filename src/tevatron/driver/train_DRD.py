@@ -89,25 +89,46 @@ def main():
         cache_dir=model_args.cache_dir,
     )
 
-    if mvrl_args.model_type == "default":
-        model = DenseModel.build(
-            model_args,
-            training_args,
-            config=config,
-            cache_dir=model_args.cache_dir,
-        )
-    elif mvrl_args.model_type == "mvrl_no_distill":
-        raise ValueError(f"wrong model_type: {mvrl_args.model_type}")
-    elif mvrl_args.model_type == "mvrl":
-        model = MVRLDenseModel.build(
-            model_args,
-            training_args,
-            mvrl_args,
-            config=config,
-            cache_dir=model_args.cache_dir,
-        )
+    if training_args.load_model_from_disk:
+        if mvrl_args.model_type == "default":
+            model = DenseModel.load(
+                model_name_or_path=model_args.model_name_or_path,
+                config=config,
+                cache_dir=model_args.cache_dir,
+            )
+        elif mvrl_args.model_type.startswith("mvrl"):
+            assert "[VAR]" in tokenizer.all_special_tokens
+            model = MVRLDenseModel.load(
+                model_args=model_args,
+                mvrl_args=mvrl_args,
+                model_name_or_path=model_args.model_name_or_path,
+                config=config,
+                cache_dir=model_args.cache_dir
+            )
+        else:
+            raise NotImplementedError(mvrl_args.model_type)
+
     else:
-        raise NotImplementedError(mvrl_args.model_type)
+
+        if mvrl_args.model_type == "default":
+            model = DenseModel.build(
+                model_args,
+                training_args,
+                config=config,
+                cache_dir=model_args.cache_dir,
+            )
+        elif mvrl_args.model_type == "mvrl_no_distill":
+            raise ValueError(f"wrong model_type: {mvrl_args.model_type}")
+        elif mvrl_args.model_type == "mvrl":
+            model = MVRLDenseModel.build(
+                model_args,
+                training_args,
+                mvrl_args,
+                config=config,
+                cache_dir=model_args.cache_dir,
+            )
+        else:
+            raise NotImplementedError(mvrl_args.model_type)
 
     if mvrl_args.model_type.startswith("mvrl"):
         logger.info(f"adding VAR token! special tokens before: {tokenizer.all_special_tokens}")
