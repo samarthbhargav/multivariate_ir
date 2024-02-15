@@ -13,17 +13,17 @@ class BaseFaissIPRetriever:
         self.index = index
 
     def add(self, p_reps: np.ndarray):
-        logger.info("p_reps dtype:", type(p_reps))
+        logger.info(f"p_reps dtype: {type(p_reps)}")
         if isinstance(p_reps, np.float64):
             p_reps = p_reps.astype(np.float32)
-            logger.info("p_reps dtype:", type(p_reps))
+            logger.info(f"p_reps dtype: {type(p_reps)}")
         self.index.add(p_reps)
 
     def search(self, q_reps: np.ndarray, k: int):
-        logger.info("q_reps dtype:", type(q_reps))
+        logger.info(f"q_reps dtype: {type(q_reps)}")
         if isinstance(q_reps, np.float64):
             q_reps = q_reps.astype(np.float32)
-            logger.info("q_reps dtype:", type(q_reps))
+            logger.info(f"q_reps dtype: {type(q_reps)}")
         return self.index.search(q_reps, k)
 
     def batch_search(self, q_reps: np.ndarray, k: int, batch_size: int, quiet: bool = False):
