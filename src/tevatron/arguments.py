@@ -143,3 +143,8 @@ class MVRLTrainingArguments:
         "help": "if set, uses the embedding similarity instead of KL in the loss"})
     embed_formulation: str = field(default="original",
                                    metadata={"help": "whether to use the 'original' or 'updated' formulation"})
+
+
+@dataclass
+class StochasticArguments:
+    n_iters: int = field(default=100, metadata={"help": "number of iterations during inference"})
