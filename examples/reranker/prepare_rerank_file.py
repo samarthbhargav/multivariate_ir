@@ -1,7 +1,7 @@
 import json
 from argparse import ArgumentParser
 
-from datasets import load_dataset
+from datasets import load_dataset, load_from_disk
 from tqdm import tqdm
 
 
@@ -29,7 +29,11 @@ parser.add_argument("--depth", type=int, default=1000, required=False)
 parser.add_argument("--cache_dir", type=str, required=False)
 
 args = parser.parse_args()
-query_data = load_dataset(args.query_data_name, cache_dir=args.cache_dir)[args.query_data_split]
+try:
+    query_data = load_dataset(args.query_data_name, cache_dir=args.cache_dir)[args.query_data_split]
+except:
+    query_data = load_from_disk(args.query_data_name)
+
 corpus_data = load_dataset(args.corpus_data_name, cache_dir=args.cache_dir)["train"]
 query_id_map = {}
 for e in tqdm(query_data):

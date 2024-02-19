@@ -1,17 +1,15 @@
 import logging
 import os
-from typing import Any, Dict, List, Optional, Tuple, Union
-
 import pytrec_eval
 import torch
 import torch.distributed as dist
 import torch.nn.functional as F
+from collections import defaultdict
+from tevatron.distillation.arguments import DistilTrainingArguments
 from torch import nn
 from torch.utils.data import DataLoader
 from transformers.trainer import Trainer
-from collections import defaultdict
-
-from tevatron.distillation.arguments import DistilTrainingArguments
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 logger = logging.getLogger(__name__)
 
@@ -171,6 +169,7 @@ class DistilTrainer(Trainer):
 
 
 class ListwiseDistilTrainer(DistilTrainer):
+    """ MVRL paper: using teacher scores."""
 
     def compute_loss(self, model, inputs):
         query, passage, pair = inputs
@@ -180,29 +179,42 @@ class ListwiseDistilTrainer(DistilTrainer):
             if self.args.negatives_x_device:
                 teacher_scores = self._dist_gather_tensor(teacher_scores)
 
-        # in-batch negatives are assigned 0 values
-        teacher_mat = torch.zeros(student_scores.shape, dtype=student_scores.dtype, device=teacher_scores.device)
         index = torch.arange(teacher_scores.size(0), device=teacher_scores.device)
 
-        if self.args.softmax_norm:
-            teacher_scores = torch.softmax(
-                teacher_scores.view(student_scores.size(0), -1) / self.args.teacher_temp, dim=1,
-                dtype=student_scores.dtype
+        if self.args.kd_in_batch_negs:
+            # in-batch negatives are assigned 0 values
+            teacher_mat = torch.zeros(student_scores.shape, dtype=student_scores.dtype, device=teacher_scores.device)
+
+            if self.args.softmax_norm:
+                teacher_scores = torch.softmax(
+                    teacher_scores.view(student_scores.size(0), -1) / self.args.teacher_temp, dim=1,
+                    dtype=student_scores.dtype
+                )
+                student_scores = torch.softmax(student_scores / self.args.student_temp, dim=1)
+
+            else:
+                teacher_scores = teacher_scores.view(student_scores.size(0), -1)
+
+            teacher_mat = torch.scatter(
+                teacher_mat, dim=-1, index=index.view(student_scores.size(0), -1),
+                src=teacher_scores.to(teacher_mat.dtype)
             )
-            student_scores = torch.softmax(student_scores / self.args.student_temp, dim=1)
+
+            teacher_scores = teacher_mat
 
         else:
             teacher_scores = teacher_scores.view(student_scores.size(0), -1)
+            student_scores = torch.gather(student_scores, 1, index.view(student_scores.size(0), -1))
 
-        teacher_mat = torch.scatter(
-            teacher_mat, dim=-1, index=index.view(student_scores.size(0), -1), src=teacher_scores.to(teacher_mat.dtype)
-        )
+            if self.args.softmax_norm:
+                teacher_scores = torch.softmax(teacher_scores / self.args.teacher_temp, dim=1)
+                student_scores = torch.softmax(student_scores / self.args.student_temp, dim=1)
 
         # sort predicted scores
         student_scores_sorted, indices_pred = student_scores.sort(descending=True, dim=-1)
 
         # sort true w.r.t sorted predicted scores
-        true_sorted_by_preds = torch.gather(teacher_mat, dim=1, index=indices_pred)
+        true_sorted_by_preds = torch.gather(teacher_scores, dim=1, index=indices_pred)
 
         # compute all possible pairs
         true_diffs = true_sorted_by_preds[:, :, None] - true_sorted_by_preds[:, None, :]
@@ -227,3 +239,278 @@ class ListwiseDistilTrainer(DistilTrainer):
         loss = torch.mean(losses[pairs_mask])
 
         return loss
+
+
+class ListwiseDistilLabelsTrainer(DistilTrainer):
+    """ MVRL paper with labels instead of scores"""
+
+    def __init__(self, teacher_model, data_args, *args, **kwargs):
+        super(ListwiseDistilLabelsTrainer, self).__init__(teacher_model, *args, **kwargs)
+        self.data_args = data_args
+
+    def compute_loss(self, model, inputs):
+        query, passage, pair = inputs
+        student_scores = model(query=query, passage=passage).scores
+
+        with torch.no_grad():
+            # teacher_scores = self.teacher_model(pair=pair).scores
+            # if self.args.negatives_x_device:
+            #     teacher_scores = self._dist_gather_tensor(teacher_scores)
+
+            # pseudolabels instead of raw teacher scores
+            soft_negs_size, hard_negs_size = (self.data_args.train_n_passages - 1), self.data_args.ann_neg_num
+
+            teacher_scores = torch.ones(student_scores.size(0), 1 + soft_negs_size + hard_negs_size).to(
+                student_scores.device)
+
+            btz = teacher_scores.size(0)
+
+            soft_negs_index = torch.arange(1, soft_negs_size + 1)
+            soft_negs = torch.ones((btz, len(soft_negs_index)), dtype=int) * soft_negs_index
+            soft_negs = soft_negs.to(teacher_scores.device)
+
+            # BM25 negative passages have a label of 0
+            teacher_scores = torch.scatter(teacher_scores, dim=-1,
+                                           index=soft_negs,
+                                           src=torch.zeros((btz, soft_negs.size(1)), device=teacher_scores.device))
+
+            # ANN negative passages have a label of 0
+            if self.data_args.ann_neg_num > 0:
+                hard_negs_index = torch.arange(soft_negs_size + 1, soft_negs_size + hard_negs_size + 1)
+                hard_negs = torch.ones((btz, len(hard_negs_index)), dtype=int) * hard_negs_index
+                hard_negs = hard_negs.to(teacher_scores.device)
+                teacher_scores = torch.scatter(teacher_scores, dim=-1,
+                                               index=hard_negs,
+                                               src=torch.zeros((btz, hard_negs.size(1)), device=teacher_scores.device))
+
+            teacher_scores = teacher_scores.view(-1, 1)
+
+        index = torch.arange(teacher_scores.size(0), device=teacher_scores.device)
+
+        if self.args.kd_in_batch_negs:
+            # in-batch negatives are assigned -1 values
+            teacher_mat = -1 * torch.ones(student_scores.shape, dtype=student_scores.dtype,
+                                          device=teacher_scores.device)
+
+            if self.args.softmax_norm:
+                teacher_scores = torch.softmax(
+                    teacher_scores.view(student_scores.size(0), -1) / self.args.teacher_temp, dim=1,
+                    dtype=student_scores.dtype
+                )
+                student_scores = torch.softmax(student_scores / self.args.student_temp, dim=1)
+
+            else:
+                teacher_scores = teacher_scores.view(student_scores.size(0), -1)
+
+            teacher_mat = torch.scatter(
+                teacher_mat, dim=-1, index=index.view(student_scores.size(0), -1),
+                src=teacher_scores.to(teacher_mat.dtype)
+            )
+
+            teacher_scores = teacher_mat
+
+        else:
+            teacher_scores = teacher_scores.view(student_scores.size(0), -1)
+            student_scores = torch.gather(student_scores, 1, index.view(student_scores.size(0), -1))
+
+            if self.args.softmax_norm:
+                teacher_scores = torch.softmax(teacher_scores / self.args.teacher_temp, dim=1)
+                student_scores = torch.softmax(student_scores / self.args.student_temp, dim=1)
+
+        # sort predicted scores
+        student_scores_sorted, indices_pred = student_scores.sort(descending=True, dim=-1)
+
+        # sort true w.r.t sorted predicted scores
+        true_sorted_by_preds = torch.gather(teacher_scores, dim=1, index=indices_pred)
+
+        # compute all possible pairs
+        true_diffs = true_sorted_by_preds[:, :, None] - true_sorted_by_preds[:, None, :]
+        pairs_mask = true_diffs > 0
+
+        # inverse rank of passage
+        inv_pos_idxs = 1. / torch.arange(1, student_scores.shape[1] + 1).to(teacher_scores.device)
+        weights = torch.abs(inv_pos_idxs.view(1, -1, 1) - inv_pos_idxs.view(1, 1, -1))  # [1, topk, topk]
+
+        # score differences (part of exp)
+        scores_diffs = (student_scores_sorted[:, :, None] - student_scores_sorted[:, None, :])
+
+        # logsumexp trick to avoid inf
+        topk = scores_diffs.size(1)
+        scores_diffs = scores_diffs.view(1, -1, 1)
+        scores_diffs = F.pad(input=-scores_diffs, pad=(0, 1), mode='constant', value=0)
+        scores = torch.logsumexp(scores_diffs, 2, True)
+        scores = scores.view(-1, topk, topk)
+
+        losses = scores * weights  # [bz, topk, topk]
+
+        loss = torch.mean(losses[pairs_mask])
+
+        return loss
+
+
+class ListwiseDistilPseudolabelsTrainer(DistilTrainer):
+    """ CLDRD paper: pseudolabels.
+    The following is valid under the assumption that the teacher model that was used to create the dataset remains the same.
+    If you want to use a different teacher model, than the one used for creating the dataset, uncomment the other
+    implementation for ListwiseDistilPseudolabelsTrainer"""
+
+    def __init__(self, teacher_model, data_args, *args, **kwargs):
+        super(ListwiseDistilPseudolabelsTrainer, self).__init__(teacher_model, *args, **kwargs)
+        self.data_args = data_args
+
+        group1_size, group2_size, group3_size = self.data_args.group_1, self.data_args.group_2, self.data_args.group_3
+        labels = torch.ones(group1_size + group2_size + group3_size) * (
+                1 / torch.arange(1, group1_size + group2_size + group3_size + 1))
+
+        hard_negs_index = torch.arange(group1_size, group1_size + group2_size)
+        soft_negs_index = torch.arange((group1_size + group2_size), (group1_size + group2_size + group3_size))
+
+        # 0 for group 2
+        labels[hard_negs_index] = 0
+
+        # -1 for group 3
+        labels[soft_negs_index] = -1
+
+        self.labels = labels
+
+    def compute_loss(self, model, inputs):
+        query, passage, pair = inputs
+
+        student_scores = model(query=query, passage=passage).scores
+
+        #with torch.no_grad():
+        #    teacher_scores = self.teacher_model(pair=pair).scores
+        #    if self.args.negatives_x_device:
+        #         teacher_scores = self._dist_gather_tensor(teacher_scores)
+
+        #    # CL-DRD approach: pseudolabels instead of raw teacher scores
+        #    teacher_scores = teacher_scores.view(student_scores.size(0), -1)
+        # labels w.r.t teacher
+
+        teacher_scores = torch.ones(student_scores.size(0), self.labels.size(0)) * self.labels
+        teacher_scores = teacher_scores.to(student_scores.device)
+
+        index = torch.arange(teacher_scores.size(0)*teacher_scores.size(1), device=teacher_scores.device)
+        student_scores = torch.gather(student_scores, 1, index.view(student_scores.size(0), -1))
+
+        if self.args.softmax_norm:
+            teacher_scores = torch.softmax(teacher_scores / self.args.teacher_temp, dim=1)
+            student_scores = torch.softmax(student_scores / self.args.student_temp, dim=1)
+
+        # sort predicted scores
+        student_scores_sorted, indices_pred = student_scores.sort(descending=True, dim=-1)
+
+        # sort true w.r.t sorted predicted scores
+        true_sorted_by_preds = torch.gather(teacher_scores, dim=1, index=indices_pred)
+
+        # compute all possible pairs
+        true_diffs = true_sorted_by_preds[:, :, None] - true_sorted_by_preds[:, None, :]
+        pairs_mask = true_diffs > 0
+
+        # inverse rank of passage
+        inv_pos_idxs = 1. / torch.arange(1, student_scores.shape[1] + 1).to(teacher_scores.device)
+        weights = torch.abs(inv_pos_idxs.view(1, -1, 1) - inv_pos_idxs.view(1, 1, -1))  # [1, topk, topk]
+
+        # score differences (part of exp)
+        scores_diffs = (student_scores_sorted[:, :, None] - student_scores_sorted[:, None, :])
+
+        # logsumexp trick to avoid inf
+        topk = scores_diffs.size(1)
+        scores_diffs = scores_diffs.view(1, -1, 1)
+        scores_diffs = F.pad(input=-scores_diffs, pad=(0, 1), mode='constant', value=0)
+        scores = torch.logsumexp(scores_diffs, 2, True)
+        scores = scores.view(-1, topk, topk)
+
+        losses = scores * weights  # [bz, topk, topk]
+
+        loss = torch.mean(losses[pairs_mask])
+
+        return loss
+
+# class ListwiseDistilPseudolabelsTrainer(DistilTrainer):
+#     """ CLDRD paper: pseudolabels.
+#     The following covers the case where the current teacher model does not match the teacher used to create the dataset."""
+#
+#     def __init__(self, teacher_model, data_args, *args, **kwargs):
+#         super(ListwiseDistilPseudolabelsTrainer, self).__init__(teacher_model, *args, **kwargs)
+#         self.data_args = data_args
+#
+#     def compute_loss(self, model, inputs):
+#         query, passage, pair = inputs
+#         group1_size, group2_size, group3_size = self.data_args.group_1, self.data_args.group_2, self.data_args.group_3
+#
+#         student_scores = model(query=query, passage=passage).scores
+#
+#         with torch.no_grad():
+#             teacher_scores = self.teacher_model(pair=pair).scores
+#             if self.args.negatives_x_device:
+#                 teacher_scores = self._dist_gather_tensor(teacher_scores)
+#
+#             # CL-DRD approach: pseudolabels instead of raw teacher scores
+#             teacher_scores = teacher_scores.view(student_scores.size(0), -1)
+#             indices_scores = teacher_scores.argsort(descending=True, dim=-1).argsort(dim=-1)
+#
+#             # inverse rank for group 1
+#             teacher_scores = 1. / (indices_scores + 1)
+#
+#             btz = teacher_scores.size(0)
+#
+#             hard_negs_index = torch.arange(group1_size, group1_size + group2_size)
+#             hard_negs = torch.ones((btz, len(hard_negs_index)), dtype=int) * hard_negs_index
+#             hard_negs = hard_negs.to(teacher_scores.device)
+#
+#             soft_negs_index = torch.arange((group1_size + group2_size),
+#                                            (group1_size + group2_size + group3_size))
+#             soft_negs = torch.ones((btz, len(soft_negs_index)), dtype=int) * soft_negs_index
+#             soft_negs = soft_negs.to(teacher_scores.device)
+#
+#             # 0 for group 2
+#             teacher_scores = torch.scatter(teacher_scores, dim=-1,
+#                                            index=hard_negs,
+#                                            src=torch.zeros((btz, hard_negs.size(1)), device=teacher_scores.device))
+#
+#             # -1 for group 3
+#             teacher_scores = torch.scatter(teacher_scores, dim=-1,
+#                                            index=soft_negs,
+#                                            src=-1 * torch.ones((btz, soft_negs.size(1)), device=teacher_scores.device))
+#
+#             teacher_scores = teacher_scores.view(-1, 1)
+#
+#         index = torch.arange(teacher_scores.size(0), device=teacher_scores.device)
+#
+#         teacher_scores = teacher_scores.view(student_scores.size(0), -1)
+#         student_scores = torch.gather(student_scores, 1, index.view(student_scores.size(0), -1))
+#
+#         if self.args.softmax_norm:
+#             teacher_scores = torch.softmax(teacher_scores / self.args.teacher_temp, dim=1)
+#             student_scores = torch.softmax(student_scores / self.args.student_temp, dim=1)
+#
+#         # sort predicted scores
+#         student_scores_sorted, indices_pred = student_scores.sort(descending=True, dim=-1)
+#
+#         # sort true w.r.t sorted predicted scores
+#         true_sorted_by_preds = torch.gather(teacher_scores, dim=1, index=indices_pred)
+#
+#         # compute all possible pairs
+#         true_diffs = true_sorted_by_preds[:, :, None] - true_sorted_by_preds[:, None, :]
+#         pairs_mask = true_diffs > 0
+#
+#         # inverse rank of passage
+#         inv_pos_idxs = 1. / torch.arange(1, student_scores.shape[1] + 1).to(teacher_scores.device)
+#         weights = torch.abs(inv_pos_idxs.view(1, -1, 1) - inv_pos_idxs.view(1, 1, -1))  # [1, topk, topk]
+#
+#         # score differences (part of exp)
+#         scores_diffs = (student_scores_sorted[:, :, None] - student_scores_sorted[:, None, :])
+#
+#         # logsumexp trick to avoid inf
+#         topk = scores_diffs.size(1)
+#         scores_diffs = scores_diffs.view(1, -1, 1)
+#         scores_diffs = F.pad(input=-scores_diffs, pad=(0, 1), mode='constant', value=0)
+#         scores = torch.logsumexp(scores_diffs, 2, True)
+#         scores = scores.view(-1, topk, topk)
+#
+#         losses = scores * weights  # [bz, topk, topk]
+#
+#         loss = torch.mean(losses[pairs_mask])
+#
+#         return loss

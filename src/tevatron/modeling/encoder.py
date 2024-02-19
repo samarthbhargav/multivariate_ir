@@ -190,7 +190,7 @@ class EncoderModel(nn.Module):
             **hf_kwargs,
     ):
         # load local
-        untie_encoder = True
+        untie_encoder = False
         if os.path.isdir(model_name_or_path):
             _qry_model_path = os.path.join(model_name_or_path, "query_model")
             _psg_model_path = os.path.join(model_name_or_path, "passage_model")
@@ -200,7 +200,7 @@ class EncoderModel(nn.Module):
                 lm_q = cls.TRANSFORMER_CLS.from_pretrained(_qry_model_path, **hf_kwargs)
                 logger.info(f"loading passage model weight from {_psg_model_path}")
                 lm_p = cls.TRANSFORMER_CLS.from_pretrained(_psg_model_path, **hf_kwargs)
-                untie_encoder = False
+                untie_encoder = True
             else:
                 logger.info(f"try loading tied weight")
                 logger.info(f"loading model weight from {model_name_or_path}")

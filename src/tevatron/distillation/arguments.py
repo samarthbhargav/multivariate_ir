@@ -21,5 +21,6 @@ class DistilModelArguments(ModelArguments):
 class DistilTrainingArguments(TevatronTrainingArguments):
     teacher_temp: float = field(default=1)
     student_temp: float = field(default=1)
-    listwise_kd: bool = field(default=False)
+    kd_type: str = field(default="cldrd") #kl, cldrd, drd_labels, drd
     softmax_norm: bool = field(default=False)
+    kd_in_batch_negs: bool = field(default=False)

@@ -118,11 +118,17 @@ class RerankerInferenceCollator(DataCollatorWithPadding):
 
 
 class RerankPreProcessor:
-    def __init__(self, tokenizer, query_max_length=32, text_max_length=256, separator=" "):
+    def __init__(self, tokenizer, query_max_length=32, text_max_length=256, separator=" ", exclude_title=False):
         self.tokenizer = tokenizer
         self.query_max_length = query_max_length
         self.text_max_length = text_max_length
         self.separator = separator
+        self.exclude_title = exclude_title
+
+    def _preproc(self, text, title):
+        if not self.exclude_title:
+            text = title + self.separator + text if title else text
+        return text
 
     def __call__(self, example):
         example = example
@@ -130,7 +136,7 @@ class RerankPreProcessor:
             example["query"], add_special_tokens=False, max_length=self.query_max_length, truncation=True
         )
 
-        text = example["title"] + self.separator + example["text"] if "title" in example else example["text"]
+        text = self._preproc(example["text"], example["title"])
         encoded_passages = self.tokenizer.encode(
             text, add_special_tokens=False, max_length=self.text_max_length, truncation=True
         )
@@ -151,14 +157,16 @@ class HFRerankDataset:
         self.p_max_len = data_args.p_max_len
         self.proc_num = data_args.dataset_proc_num
         self.separator = getattr(self.tokenizer, data_args.passage_field_separator, data_args.passage_field_separator)
+        self.exclude_title = data_args.exclude_title
 
     def process(self, shard_num=1, shard_idx=0):
         self.dataset = self.dataset.shard(shard_num, shard_idx)
         if self.preprocessor is not None:
             self.dataset = self.dataset.map(
-                self.preprocessor(self.tokenizer, self.q_max_len, self.p_max_len, self.separator),
+                self.preprocessor(self.tokenizer, self.q_max_len, self.p_max_len, self.separator, self.exclude_title),
                 num_proc=self.proc_num,
                 remove_columns=self.dataset.column_names,
                 desc="Running tokenizer on train dataset",
             )
         return self.dataset
+

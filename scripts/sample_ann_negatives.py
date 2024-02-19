@@ -39,19 +39,21 @@ def main(args):
                               split=corpus_split)
 
     # load rankings
-    qpreds_data = []
+    qpreds_dict = {}
     ranking_files = glob.glob(args.rankings)
     for ranking_file in ranking_files:
         qpreds_data_tmp = open(ranking_file, 'rt').readlines()
-        qpreds_data_tmp = [line.replace('\n', '').split('\t') for line in qpreds_data_tmp]
-        qpreds_data.extend(qpreds_data_tmp)
 
-    qpreds_dict = {}
-    for i in qpreds_data:
-        if i[0] in qpreds_dict.keys():
-            qpreds_dict[i[0]].update({i[1]: i[2]})
-        else:
-            qpreds_dict[i[0]] = {i[1]: i[2]}
+        for line in qpreds_data_tmp:
+            qpreds_data_tmp = line.replace('\n', '').split('\t')
+            qid = qpreds_data_tmp[0]
+
+            if qid in qpreds_dict.keys():
+                if len(qpreds_dict[qid]) <= 250:
+                    qpreds_dict[qid].update({qpreds_data_tmp[1]: qpreds_data_tmp[2]})
+
+            else:
+                qpreds_dict[qid] = {qpreds_data_tmp[1]: qpreds_data_tmp[2]}
 
     # docid is same as the position on dataset (or not)
     if not args.docid_is_pos:
@@ -66,12 +68,12 @@ def main(args):
         for q_entry in shard:
 
             qid = q_entry["query_id"]
-            positive_docids = [positive["docid"] for positive in q_entry["positive_passages"]]
-
             rankings_dict = qpreds_dict[qid]
 
-            for pos_docid in positive_docids:
-                rankings_dict.pop(pos_docid, None)
+            if args.remove_qrel_positives:
+                positive_docids = [positive["docid"] for positive in q_entry["positive_passages"]]
+                for pos_docid in positive_docids:
+                    rankings_dict.pop(pos_docid, None)
 
             keys = random.sample(list(rankings_dict.keys()), args.k) if args.random else list(rankings_dict.keys())[
                                                                                          :args.k]
@@ -113,6 +115,8 @@ if __name__ == "__main__":
     parser.add_argument("--shards", default=None, type=int, help="number of shards (when saving the new dataset)")
     parser.add_argument("--data_cache_dir", help="here do you want to store the data downloaded from huggingface",
                         default=None)
+    parser.add_argument('--remove_qrel_positives',
+                        help="remove the known positives from the list of retrieved passages", action="store_true")
     parser.add_argument("--k", type=int, help="number of hard negatives from ANN", default=10, choices=range(1, 1000))
     parser.add_argument('--docid_is_pos', help="docid is the position in the dataset", action="store_true")
     parser.add_argument('--random', help="random selection of k ANN negatives", action="store_true")

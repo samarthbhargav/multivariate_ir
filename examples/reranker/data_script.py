@@ -96,4 +96,4 @@ class MsMarcoPassageRerank(datasets.GeneratorBasedBuilder):
             with open(filepath, encoding="utf-8") as f:
                 for line in f:
                     data = json.loads(line)
-                    yield data["query_id"] + data["docid"], data
+                    yield data["query_id"] +"_"+data["docid"], data
