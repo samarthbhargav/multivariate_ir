@@ -60,6 +60,8 @@ class DataArguments:
     encode_is_qry: bool = field(default=False)
     encode_num_shard: int = field(default=1)
     encode_shard_index: int = field(default=0)
+    keep_data_in_memory: bool = field(default=False,
+                                      metadata={"help": "whether to keep data in memory during training"})
 
     q_max_len: int = field(
         default=32,
@@ -151,4 +153,3 @@ class MVRLTrainingArguments:
         "help": "if set, uses the embedding similarity instead of KL in the loss"})
     embed_formulation: str = field(default="original",
                                    metadata={"help": "whether to use the 'original' or 'updated' formulation"})
-

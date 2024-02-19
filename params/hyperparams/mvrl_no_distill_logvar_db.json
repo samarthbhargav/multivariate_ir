@@ -1,7 +1,7 @@
 {
   "do_train": true,
   "do_eval": true,
-  "model_name_or_path": "sebastian-hofstaetter/distilbert-dot-tas_b-b256-msmarco",
+  "model_name_or_path": "distilbert-base-uncased",
   "untie_encoder": false,
   "dataset_name": "Tevatron/msmarco-passage",
   "data_cache_dir": "/projects/0/prjs0907/.hf_data_cache",
@@ -32,13 +32,7 @@
     1e-04
   ],
   "model_type": "mvrl_no_distill",
-  "embed_formulation": "updated",
   "add_var_token": true,
-  "var_activation": "softplus",
-  "var_activation_param_b": [
-    0.5,
-    1,
-    2.5,
-    7.5
-  ]
+  "embed_formulation": "updated",
+  "var_activation": "logvar"
 }

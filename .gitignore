@@ -2,6 +2,7 @@
 .python-version
 __pycache__/
 *.egg-info/
+runs
 
 *.job
 *.params
@@ -15,3 +16,9 @@ msmarco/
 
 
 *.DS_Store
+datasets
+qpp_output
+
+msmarco-small-perturbed-*
+msmarco-med-perturbed-*
+msmarco-perturbed-*

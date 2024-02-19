@@ -52,6 +52,7 @@ class HFTrainDataset:
         self.q_max_len = data_args.q_max_len
         self.p_max_len = data_args.p_max_len
         self.proc_num = data_args.dataset_proc_num
+        self.keep_data_in_memory = data_args.keep_data_in_memory
         self.separator = getattr(self.tokenizer, data_args.passage_field_separator, data_args.passage_field_separator)
         self.add_var_token = data_args.add_var_token
         self.exclude_title = data_args.exclude_title
@@ -74,7 +75,8 @@ class HFTrainDataset:
                 num_proc=self.proc_num,
                 remove_columns=self.dataset.column_names,
                 desc="Running tokenizer on train dataset",
-                load_from_cache_file=False
+                load_from_cache_file=False,
+                keep_in_memory=self.keep_data_in_memory
             )
         return self.dataset
 

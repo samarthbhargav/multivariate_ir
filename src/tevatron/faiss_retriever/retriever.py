@@ -23,7 +23,7 @@ class BaseFaissIPRetriever:
         all_scores = []
         all_indices = []
         for start_idx in tqdm(range(0, num_query, batch_size), disable=quiet):
-            nn_scores, nn_indices = self.search(q_reps[start_idx : start_idx + batch_size], k)
+            nn_scores, nn_indices = self.search(q_reps[start_idx: start_idx + batch_size], k)
             all_scores.append(nn_scores)
             all_indices.append(nn_indices)
         all_scores = np.concatenate(all_scores, axis=0)
