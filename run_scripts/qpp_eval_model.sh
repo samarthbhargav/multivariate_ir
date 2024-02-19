@@ -114,6 +114,7 @@ python -m tevatron.driver.qpp \
   --p_max_len 256 \
   --exclude_title \
   --q_max_len 32 \
+  --dataset_name Tevatron/msmarco-passage-corpus \
   --hf_disk_dataset ${DATA_PATH}/msmarco-med/corpus \
   ${EXTRA_ARGS} >>${LOG_FILE} 2>&1
 
@@ -129,6 +130,7 @@ do
   --p_max_len 256 \
   --exclude_title \
   --q_max_len 32 \
+  --dataset_name Tevatron/msmarco-passage-corpus \
   --hf_disk_dataset ${DATA_PATH}/msmarco-med-perturbed-${perc}/corpus \
   ${EXTRA_ARGS} >>${LOG_FILE} 2>&1
 done
@@ -148,6 +150,7 @@ do
   --encode_is_qry \
   --exclude_title \
   --q_max_len 32 \
+  --dataset_name Tevatron/msmarco-passage \
   --hf_disk_dataset ${DATA_PATH}/msmarco/${split} \
   ${EXTRA_ARGS} >>${LOG_FILE} 2>&1
 
@@ -165,6 +168,7 @@ do
       --encode_is_qry \
       --exclude_title \
       --q_max_len 32 \
+      --dataset_name Tevatron/msmarco-passage \
       --hf_disk_dataset ${DATA_PATH}/msmarco-perturbed-${perc}/${split} \
       ${EXTRA_ARGS} >>${LOG_FILE} 2>&1
   done
