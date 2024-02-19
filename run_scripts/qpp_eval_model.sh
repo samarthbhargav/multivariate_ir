@@ -29,79 +29,6 @@ echo "EXTRA_ARGS=${EXTRA_ARGS}"
 
 mkdir -p ${MODEL_OUT}
 
-#
-#TEST_SETS=('dl19' 'dl20' 'dev')
-#for split in "${TEST_SETS[@]}"
-#do
-#  echo "eval ${split}"
-#  python -m tevatron.driver.qpp \
-#  --output_dir=${MODEL_OUT} \
-#  --model_name_or_path ${MODEL_PATH_OR_NAME} \
-#  --qpp_save_path ${MODEL_OUT}/msmarco-${split}.txt \
-#  --fp16 \
-#  --per_device_eval_batch_size ${BATCH_SIZE} \
-#  --p_max_len 256 \
-#  --exclude_title \
-#  --q_max_len 32 \
-#  --encode_is_qry \
-#  --dataset_name Tevatron/msmarco-passage/${split} \
-#  ${EXTRA_ARGS} >>${LOG_FILE} 2>&1
-#done
-#
-#echo "scifact corpus"
-#python -m tevatron.driver.qpp \
-#--output_dir=${MODEL_OUT} \
-#--model_name_or_path ${MODEL_PATH_OR_NAME} \
-#--fp16 \
-#--per_device_eval_batch_size ${BATCH_SIZE} \
-#--p_max_len 512 \
-#--dataset_name Tevatron/scifact-corpus \
-#--qpp_save_path ${MODEL_OUT}/corpus_scifact.txt \
-#${EXTRA_ARGS} >>${LOG_FILE} 2>&1
-#
-#echo "scifact dev"
-#python -m tevatron.driver.qpp \
-#--output_dir=${MODEL_OUT} \
-#--model_name_or_path ${MODEL_PATH_OR_NAME} \
-#--fp16 \
-#--per_device_eval_batch_size ${BATCH_SIZE} \
-#--q_max_len 64 \
-#--encode_is_qry \
-#--dataset_name Tevatron/scifact/dev \
-#--qpp_save_path ${MODEL_OUT}/dev_scifact.txt \
-#${EXTRA_ARGS} >>${LOG_FILE} 2>&1
-#
-#
-#BIER_DATASETS=("fiqa" "trec-covid" "cqadupstack-android" "cqadupstack-english" "cqadupstack-gaming" "cqadupstack-gis" "cqadupstack-wordpress" "cqadupstack-physics" "cqadupstack-programmers" "cqadupstack-stats" "cqadupstack-tex" "cqadupstack-unix" "cqadupstack-webmasters" "cqadupstack-wordpress" )
-#BATCH_SIZE=128
-#for bds in "${BIER_DATASETS[@]}"
-#do
-#    echo "eval $bds"
-#
-#    echo "encoding corpus"
-#    python -m tevatron.driver.qpp \
-#    --output_dir=${MODEL_OUT} \
-#    --model_name_or_path ${MODEL_PATH_OR_NAME} \
-#    --fp16 \
-#    --per_device_eval_batch_size ${BATCH_SIZE} \
-#    --p_max_len 512 \
-#    --dataset_name Tevatron/beir-corpus:${bds} \
-#    --qpp_save_path ${MODEL_OUT}/bier_${bds}-corpus.txt \
-#    ${EXTRA_ARGS} >>${LOG_FILE} 2>&1
-#
-#    echo "encoding test queries"
-#    python -m tevatron.driver.qpp \
-#    --output_dir=${MODEL_OUT} \
-#    --model_name_or_path ${MODEL_PATH_OR_NAME} \
-#    --fp16 \
-#    --per_device_eval_batch_size ${BATCH_SIZE} \
-#    --dataset_name Tevatron/beir:${bds}/test \
-#    --qpp_save_path ${MODEL_OUT}/bier_${bds}_test.txt \
-#    --q_max_len 512 \
-#    --encode_is_qry \
-#    ${EXTRA_ARGS} >>${LOG_FILE} 2>&1
-#done
-#
 
 echo "running on perturbations"
 echo "MSMARCO-Med Corpus"
@@ -172,4 +99,76 @@ do
       --hf_disk_dataset ${DATA_PATH}/msmarco-perturbed-${perc}/${split} \
       ${EXTRA_ARGS} >>${LOG_FILE} 2>&1
   done
+done
+
+TEST_SETS=('dl19' 'dl20' 'dev')
+for split in "${TEST_SETS[@]}"
+do
+  echo "eval ${split}"
+  python -m tevatron.driver.qpp \
+  --output_dir=${MODEL_OUT} \
+  --model_name_or_path ${MODEL_PATH_OR_NAME} \
+  --qpp_save_path ${MODEL_OUT}/msmarco-${split}.txt \
+  --fp16 \
+  --per_device_eval_batch_size ${BATCH_SIZE} \
+  --p_max_len 256 \
+  --exclude_title \
+  --q_max_len 32 \
+  --encode_is_qry \
+  --dataset_name Tevatron/msmarco-passage/${split} \
+  ${EXTRA_ARGS} >>${LOG_FILE} 2>&1
+done
+
+echo "scifact corpus"
+python -m tevatron.driver.qpp \
+--output_dir=${MODEL_OUT} \
+--model_name_or_path ${MODEL_PATH_OR_NAME} \
+--fp16 \
+--per_device_eval_batch_size ${BATCH_SIZE} \
+--p_max_len 512 \
+--dataset_name Tevatron/scifact-corpus \
+--qpp_save_path ${MODEL_OUT}/corpus_scifact.txt \
+${EXTRA_ARGS} >>${LOG_FILE} 2>&1
+
+echo "scifact dev"
+python -m tevatron.driver.qpp \
+--output_dir=${MODEL_OUT} \
+--model_name_or_path ${MODEL_PATH_OR_NAME} \
+--fp16 \
+--per_device_eval_batch_size ${BATCH_SIZE} \
+--q_max_len 64 \
+--encode_is_qry \
+--dataset_name Tevatron/scifact/dev \
+--qpp_save_path ${MODEL_OUT}/dev_scifact.txt \
+${EXTRA_ARGS} >>${LOG_FILE} 2>&1
+
+
+BIER_DATASETS=("fiqa" "trec-covid" "cqadupstack-android" "cqadupstack-english" "cqadupstack-gaming" "cqadupstack-gis" "cqadupstack-wordpress" "cqadupstack-physics" "cqadupstack-programmers" "cqadupstack-stats" "cqadupstack-tex" "cqadupstack-unix" "cqadupstack-webmasters" "cqadupstack-wordpress" )
+BATCH_SIZE=128
+for bds in "${BIER_DATASETS[@]}"
+do
+    echo "eval $bds"
+
+    echo "encoding corpus"
+    python -m tevatron.driver.qpp \
+    --output_dir=${MODEL_OUT} \
+    --model_name_or_path ${MODEL_PATH_OR_NAME} \
+    --fp16 \
+    --per_device_eval_batch_size ${BATCH_SIZE} \
+    --p_max_len 512 \
+    --dataset_name Tevatron/beir-corpus:${bds} \
+    --qpp_save_path ${MODEL_OUT}/bier_${bds}-corpus.txt \
+    ${EXTRA_ARGS} >>${LOG_FILE} 2>&1
+
+    echo "encoding test queries"
+    python -m tevatron.driver.qpp \
+    --output_dir=${MODEL_OUT} \
+    --model_name_or_path ${MODEL_PATH_OR_NAME} \
+    --fp16 \
+    --per_device_eval_batch_size ${BATCH_SIZE} \
+    --dataset_name Tevatron/beir:${bds}/test \
+    --qpp_save_path ${MODEL_OUT}/bier_${bds}_test.txt \
+    --q_max_len 512 \
+    --encode_is_qry \
+    ${EXTRA_ARGS} >>${LOG_FILE} 2>&1
 done
