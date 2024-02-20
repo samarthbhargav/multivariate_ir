@@ -385,8 +385,8 @@ class ListwiseDistilPseudolabelsTrainer(DistilTrainer):
 
         #    # CL-DRD approach: pseudolabels instead of raw teacher scores
         #    teacher_scores = teacher_scores.view(student_scores.size(0), -1)
+        
         # labels w.r.t teacher
-
         teacher_scores = torch.ones(student_scores.size(0), self.labels.size(0)) * self.labels
         teacher_scores = teacher_scores.to(student_scores.device)
 
