@@ -13,10 +13,16 @@ class BaseFaissIPRetriever:
         self.index = index
 
     def add(self, p_reps: np.ndarray):
-        self.index.add(p_reps)
+        try:
+            self.index.add(p_reps)
+        except TypeError:
+            self.index.add(p_reps.astype(np.float32))
 
     def search(self, q_reps: np.ndarray, k: int):
-        return self.index.search(q_reps, k)
+        try:
+            return self.index.search(q_reps, k)
+        except TypeError:
+            return self.index.search(q_reps.astype(np.float32), k)
 
     def batch_search(self, q_reps: np.ndarray, k: int, batch_size: int, quiet: bool = False):
         num_query = q_reps.shape[0]
