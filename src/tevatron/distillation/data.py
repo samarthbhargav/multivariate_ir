@@ -181,6 +181,7 @@ class HFDistilTrainDataset:
         self.separator = " "
         self.add_var_token = data_args.add_var_token
         self.exclude_title = data_args.exclude_title
+        self.keep_data_in_memory = data_args.keep_data_in_memory
         logger.info(f"exclude_title:{self.exclude_title}; add_var_token: {self.add_var_token}")
         logger.info(f"ann_negatives:{self.ann_neg_num}; is_validation: {self.is_validation}")
 
@@ -204,6 +205,7 @@ class HFDistilTrainDataset:
                 remove_columns=self.dataset.column_names,
                 desc="Running tokenizer on train dataset",
                 load_from_cache_file=False,
+                keep_in_memory=self.keep_data_in_memory
             )
         return self.dataset
 
@@ -270,7 +272,7 @@ class DistilTrainDataset(Dataset):
             student_ann_negatives = group["student_ann_negatives"]
             teacher_ann_negatives = group["teacher_ann_negatives"]
 
-            idxs = random.sample(list(range(self.data_args.group_1_size)), k=self.data_args.group_1)
+            idxs = list(range(self.data_args.group_1_size))[:self.data_args.group_1]
             idxs.extend(random.sample(list(range(self.data_args.group_1_size, self.data_args.group_1_size+self.data_args.group_2_size)),
                                        k=self.data_args.group_2))
             idxs.extend(random.sample(list(range(self.data_args.group_1_size + self.data_args.group_2_size,
