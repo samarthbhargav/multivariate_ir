@@ -158,3 +158,4 @@ class MVRLTrainingArguments:
 @dataclass
 class StochasticArguments:
     n_iters: int = field(default=100, metadata={"help": "number of iterations during inference"})
+    freeze_base_model: bool = field(default=False, metadata={"help": "if set, only trains projection layers"})

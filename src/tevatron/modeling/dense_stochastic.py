@@ -18,6 +18,10 @@ from ..arguments import ModelArguments, StochasticArguments
 logger = logging.getLogger(__name__)
 
 
+def count_trainable_parameters(model):
+    return sum(p.numel() for p in model.parameters() if p.requires_grad)
+
+
 class ConcreteDropout(nn.Module):
     """
     Source: https://github.com/dscohen/LastLayersBayesianIR/blob/main/models/layers/concete_dropout.py#L8
@@ -165,6 +169,7 @@ class StochasticDenseModel(DenseModel):
             output_dim=model_args.projection_in_dim,
             untie_encoder=model_args.untie_encoder,
             n_iters=stoch_args.n_iters,
+            freeze_base_model=stoch_args.freeze_base_model
         )
         return model
 
@@ -214,7 +219,8 @@ class StochasticDenseModel(DenseModel):
                     pooler=pooler,
                     untie_encoder=untie_encoder,
                     output_dim=model_args.projection_in_dim,
-                    n_iters=stoch_args.n_iters)
+                    n_iters=stoch_args.n_iters,
+                    freeze_base_model=stoch_args.freeze_base_model)
 
         stoch_path_1 = os.path.join(model_name_or_path, "stoch_projection_1")
         logger.info(f"loading stoch_projection_1 from {stoch_path_1}")
@@ -250,6 +256,7 @@ class StochasticDenseModel(DenseModel):
             untie_encoder: bool = False,
             negatives_x_device: bool = False,
             n_iters: int = 100,
+            freeze_base_model: bool = False
     ):
         super().__init__(lm_q=lm_q, lm_p=lm_p, pooler=pooler, untie_encoder=untie_encoder,
                          negatives_x_device=negatives_x_device)
@@ -260,7 +267,19 @@ class StochasticDenseModel(DenseModel):
         self.cd1 = ConcreteDropout(weight_regulariser=w, dropout_regulariser=d)
         self.cd2 = ConcreteDropout(weight_regulariser=w, dropout_regulariser=d)
         self.n_iters = n_iters
+        self.freeze_base_model = freeze_base_model
         logger.info(f"stoch_projection: {self.stoch_projection_1}, {self.stoch_projection_2}")
+
+        if self.freeze_base_model:
+            logger.info("freezing base model(s)")
+            logger.info(f"num params before freezing: {count_trainable_parameters(self)}")
+            models_to_freeze = ["lm_q", "lm_p"] if self.untie_encoder else ["lm_q"]
+            for to_freeze in models_to_freeze:
+                logger.info(
+                    f"freezeing {to_freeze} with {count_trainable_parameters(getattr(self, to_freeze))} params")
+                for param in getattr(self, to_freeze).parameters():
+                    param.requires_grad = False
+            logger.info(f"num params after freezing: {count_trainable_parameters(self)}")
 
     def forward(self, query: Dict[str, Tensor] = None, passage: Dict[str, Tensor] = None, n_iters=1):
         q_reps = self.encode_query(query, n_iters)
