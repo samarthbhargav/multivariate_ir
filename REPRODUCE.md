@@ -156,6 +156,46 @@ srun -p gpu --time=96:00:00 --mem=120G -c12 --gres=gpu:1 python -m tevatron.driv
 ```
 
 
+MVRL with TAS-B checkpoint, using logvar activation function. Trained with 512 batch size using gradient accumulation
+
+max_steps with bz 14 = 150000
+max_steps with bz 512 = x
+--> x = (14 * 150000) / 512 ~= 4000
+```
+srun -p gpu --time=96:00:00 --mem=120G -c12 --gres=gpu:1 python -m tevatron.driver.train \
+--do_train \
+--do_eval  \
+--model_name_or_path sebastian-hofstaetter/distilbert-dot-tas_b-b256-msmarco \
+--dataset_name Tevatron/msmarco-passage \
+--data_cache_dir /projects/0/prjs0907/.hf_data_cache \
+--cache_dir /projects/0/prjs0907/.hf_model_cache \
+--train_dir /projects/0/prjs0907/data/msmarco/train \
+--val_dir /projects/0/prjs0907/data/msmarco/validation \
+--per_device_train_batch_size 512 \
+--grad_cache \
+--gc_q_chunk_size 14 \
+--gc_p_chunk_size 14 \
+--per_device_eval_batch_size 105 \
+--train_n_passages 31 \
+--q_max_len 32 \
+--p_max_len 256 \
+--max_steps 4000 \
+--evaluation_strategy steps \
+--eval_steps 500 \
+--save_steps 500 \
+--metric_for_best_model mrr \
+--disable_distributed  \
+--warmup_ratio 0.1 \
+--fp16  --fp16_full_eval  \
+--exclude_title  \
+--model_type mvrl_no_distill \
+--add_var_token  \
+--embed_formulation updated \
+--var_activation logvar \
+--learning_rate 7e-06 \
+--keep_data_in_memory \
+--output_dir /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_tasb_logvar_512/ >> mvrl_nd_tasb_logvvar_512.log 2>&1 &
+```
 
 MVRL, use embeds during training, rather than the full KL loss
 ```
@@ -227,6 +267,127 @@ srun -p gpu --time=96:00:00 --mem=120G -c12 --gres=gpu:1 python -m tevatron.driv
 
 ``` 
 
+MC-Dropout model (1) base layer not frozen (2) base layer frozen (3) tas-b not frozen (4) tas-b frozen
+```
+srun -p gpu --time=96:00:00 --mem=120G -c12 --gres=gpu:1 python -m tevatron.driver.train \
+--do_train  \
+--do_eval  \
+--model_name_or_path distilbert-base-uncased \
+--dataset_name Tevatron/msmarco-passage \
+--data_cache_dir /projects/0/prjs0907/.hf_data_cache \
+--cache_dir /projects/0/prjs0907/.hf_model_cache \
+--train_dir /projects/0/prjs0907/data/msmarco/train \
+--val_dir /projects/0/prjs0907/data/msmarco/validation \
+--per_device_train_batch_size 14 \
+--per_device_eval_batch_size 105 \
+--train_n_passages 31 \
+--q_max_len 32 \
+--p_max_len 256 \
+--max_steps 150000 \
+--evaluation_strategy steps \
+--eval_steps 25000 \
+--save_steps 25000 \
+--metric_for_best_model mrr \
+--disable_distributed  \
+--warmup_ratio 0.1 \
+--fp16  \
+--fp16_full_eval  \
+--exclude_title  \
+--model_type stochastic \
+--learning_rate 7e-06 \
+--output_dir /projects/0/prjs0907/multivariate_ir_experiments/experiments/stoch_db/ >> stoch_db.log 2>&1 &
+
+
+srun -p gpu --time=96:00:00 --mem=120G -c12 --gres=gpu:1 python -m tevatron.driver.train \
+--do_train  \
+--do_eval  \
+--model_name_or_path distilbert-base-uncased \
+--dataset_name Tevatron/msmarco-passage \
+--data_cache_dir /projects/0/prjs0907/.hf_data_cache \
+--cache_dir /projects/0/prjs0907/.hf_model_cache \
+--train_dir /projects/0/prjs0907/data/msmarco/train \
+--val_dir /projects/0/prjs0907/data/msmarco/validation \
+--per_device_train_batch_size 14 \
+--per_device_eval_batch_size 105 \
+--train_n_passages 31 \
+--q_max_len 32 \
+--p_max_len 256 \
+--max_steps 150000 \
+--evaluation_strategy steps \
+--eval_steps 25000 \
+--save_steps 25000 \
+--metric_for_best_model mrr \
+--disable_distributed  \
+--warmup_ratio 0.1 \
+--fp16  \
+--fp16_full_eval  \
+--exclude_title  \
+--model_type stochastic \
+--freeze_base_model \
+--learning_rate 7e-06 \
+--output_dir /projects/0/prjs0907/multivariate_ir_experiments/experiments/stoch_db_frozen/ >> stoch_db_frozen.log 2>&1 &
+
+
+srun -p gpu --time=96:00:00 --mem=120G -c12 --gres=gpu:1 python -m tevatron.driver.train \
+--do_train  \
+--do_eval  \
+--model_name_or_path sebastian-hofstaetter/distilbert-dot-tas_b-b256-msmarco \
+--dataset_name Tevatron/msmarco-passage \
+--data_cache_dir /projects/0/prjs0907/.hf_data_cache \
+--cache_dir /projects/0/prjs0907/.hf_model_cache \
+--train_dir /projects/0/prjs0907/data/msmarco/train \
+--val_dir /projects/0/prjs0907/data/msmarco/validation \
+--per_device_train_batch_size 14 \
+--per_device_eval_batch_size 105 \
+--train_n_passages 31 \
+--q_max_len 32 \
+--p_max_len 256 \
+--max_steps 150000 \
+--evaluation_strategy steps \
+--eval_steps 25000 \
+--save_steps 25000 \
+--metric_for_best_model mrr \
+--disable_distributed  \
+--warmup_ratio 0.1 \
+--fp16  \
+--fp16_full_eval  \
+--exclude_title  \
+--model_type stochastic \
+--learning_rate 7e-06 \
+--output_dir /projects/0/prjs0907/multivariate_ir_experiments/experiments/stoch_tasb/ >> stoch_tasb.log 2>&1 &
+
+
+srun -p gpu --time=96:00:00 --mem=120G -c12 --gres=gpu:1 python -m tevatron.driver.train \
+--do_train  \
+--do_eval  \
+--model_name_or_path sebastian-hofstaetter/distilbert-dot-tas_b-b256-msmarco \
+--dataset_name Tevatron/msmarco-passage \
+--data_cache_dir /projects/0/prjs0907/.hf_data_cache \
+--cache_dir /projects/0/prjs0907/.hf_model_cache \
+--train_dir /projects/0/prjs0907/data/msmarco/train \
+--val_dir /projects/0/prjs0907/data/msmarco/validation \
+--per_device_train_batch_size 14 \
+--per_device_eval_batch_size 105 \
+--train_n_passages 31 \
+--q_max_len 32 \
+--p_max_len 256 \
+--max_steps 150000 \
+--evaluation_strategy steps \
+--eval_steps 25000 \
+--save_steps 25000 \
+--metric_for_best_model mrr \
+--disable_distributed  \
+--warmup_ratio 0.1 \
+--fp16  \
+--fp16_full_eval  \
+--exclude_title  \
+--model_type stochastic \
+--freeze_base_model \
+--learning_rate 7e-06 \
+--output_dir /projects/0/prjs0907/multivariate_ir_experiments/experiments/stoch_tasb_frozen/ >> stoch_tasb_frozen.log 2>&1 &
+
+```
+
 
 #### Evaluation
 
@@ -291,7 +452,23 @@ srun -p gpu --gres=gpu:1 --mem=120G -c12 --time=48:00:00 sh eval_snellius.sh \
             /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_db_edt_original/original/eval.log &
 
 
+srun -p gpu --gres=gpu:1 --mem=120G -c12 --time=48:00:00 sh eval_snellius.sh \
+            /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_tasb_logvar \
+            /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_tasb_logvar/updated \
+            "--model_type mvrl_no_distill --add_var_token  --embed_formulation updated --var_activation logvar" \
+            /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_tasb_logvar/updated/eval.log &
 
+srun -p gpu --gres=gpu:1 --mem=120G -c12 --time=96:00:00 sh eval_snellius.sh \
+            /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_tasb_logvar \
+            /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_tasb_logvar/original \
+            "--model_type mvrl_no_distill --add_var_token  --embed_formulation original --var_activation logvar" \
+            /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_tasb_logvar/original/eval.log &
+
+srun -p gpu --gres=gpu:1 --mem=120G -c12 --time=96:00:00 sh eval_snellius.sh \
+            /projects/0/prjs0907/multivariate_ir_experiments/experiments/stoch_db \
+            /projects/0/prjs0907/multivariate_ir_experiments/experiments/stoch_db \
+            "--model_type stochastic " \
+            /projects/0/prjs0907/multivariate_ir_experiments/experiments/stoch_db/eval.log &
 
 ```
 
@@ -304,14 +481,35 @@ srun -p gpu --gres=gpu:1 --mem=24G --time=12:00:00 sh qpp_eval_model.sh \
         /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_db/14 \
         /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_db/14/qpp \
         "--model_type mvrl_no_distill --add_var_token  --embed_formulation updated --var_activation softplus --var_activation_param_b 2.5" \
-        /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_db/14/qpp/qpp.log 
+        /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_db/14/qpp/qpp.log & 
 
 
 srun -p gpu --gres=gpu:1 --mem=24G --time=12:00:00 sh qpp_eval_model.sh \
         /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_db_logvar/3 \
         /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_db_logvar/3/qpp \
-        "--model_type mvrl_no_distill --add_var_token --var_activation logvar" \
-        /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_db_logvar/3/qpp/qpp.log
+        "--model_type mvrl_no_distill --add_var_token --var_activation logvar --embed_formulation updated" \
+        /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_db_logvar/3/qpp/qpp.log 
+
+srun -p gpu --gres=gpu:1 --mem=24G --time=12:00:00 sh qpp_eval_model.sh \
+        /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_tasb_2 \
+        /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_tasb_2/qpp \
+        "--model_type mvrl_no_distill --add_var_token  --embed_formulation original --var_activation softplus --var_activation_param_b 2.5" \
+        /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_tasb_2/qpp/qpp.log 
+
+srun -p gpu --gres=gpu:1 --mem=24G --time=12:00:00 sh qpp_eval_model.sh \
+        /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_tasb_logvar \
+        /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_tasb_logvar/qpp \
+        "--model_type mvrl_no_distill --add_var_token  --embed_formulation updated --var_activation logvar" \
+        /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_tasb_logvar/qpp/qpp.log 
+   
+
+srun -p gpu --gres=gpu:1 --mem=24G --time=12:00:00 sh qpp_eval_model.sh \
+        /projects/0/prjs0907/multivariate_ir_experiments/experiments/stoch_db \
+        /projects/0/prjs0907/multivariate_ir_experiments/experiments/stoch_db/qpp \
+        "--model_type stochastic" \
+        /projects/0/prjs0907/multivariate_ir_experiments/experiments/stoch_db/qpp/qpp.log 
+
+
 ```
 
 ## QPP 

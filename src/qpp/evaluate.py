@@ -18,6 +18,8 @@ if __name__ == '__main__':
     actual_performances = []
     for ap_file in args.actual:
         ap_name, ap_file = ap_file.split(",")
+        if ap_name.startswith("."):
+            continue
         print(f"Reading g.t performance: {ap_name} ({ap_file})")
         with open(ap_file) as reader:
             actual_performances.append((ap_name, json.load(reader)))
@@ -25,8 +27,9 @@ if __name__ == '__main__':
     # read predicted performance
     pred_performances = {}
     for pp_file in os.listdir(args.predicted_dir):
-        if ".json" in pp_file:
+        if ".json" in pp_file or pp_file.startswith("."):
             continue
+
         pp_name = pp_file
         pp_file = os.path.join(args.predicted_dir, pp_file)
         print(f"Reading Predictions: {pp_name} ({pp_file})")
