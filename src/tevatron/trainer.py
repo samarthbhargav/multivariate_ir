@@ -198,7 +198,7 @@ class GCTrainer(TevatronTrainer):
         queries, passages = {"query": queries}, {"passage": passages}
 
         _distributed = self.args.local_rank > -1
-        self.gc.models = [model, model]
+        # self.gc.models = [model, model]
         loss = self.gc(queries, passages, no_sync_except_last=_distributed)
 
         return loss / self._dist_loss_scale_factor
