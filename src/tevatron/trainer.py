@@ -7,6 +7,7 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 import torch
 import torch.distributed as dist
 from torch import nn
+from torch.nn.parallel import DistributedDataParallel
 from torch.utils.data import DataLoader
 from transformers.trainer import Trainer
 import pytrec_eval
@@ -174,6 +175,8 @@ class GCTrainer(TevatronTrainer):
 
         loss_fn_cls = DistributedContrastiveLoss if self.args.negatives_x_device else SimpleContrastiveLoss
         loss_fn = loss_fn_cls()
+
+        self.model = DistributedDataParallel(self.model)
 
         self.gc = GradCache(
             models=[self.model, self.model],
