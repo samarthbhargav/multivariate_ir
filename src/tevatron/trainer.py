@@ -179,8 +179,7 @@ class GCTrainer(TevatronTrainer):
         logger.info("wrapping model in DDP")
         self.model = DistributedDataParallel(self.model,
                                              device_ids=[0],
-                                             output_device=0,
-                                             find_unused_parameters=True)
+                                             output_device=0)
 
         self.gc = GradCache(
             models=[self.model, self.model],
@@ -191,6 +190,12 @@ class GCTrainer(TevatronTrainer):
             fp16=self.args.fp16,
             scaler=self.scaler if self.args.fp16 else None,
         )
+
+    def _save(self, output_dir: Optional[str] = None):
+        try:
+            super()._save(output_dir)
+        except AttributeError:
+            self.model.module.save(output_dir)
 
     def training_step(self, model, inputs) -> torch.Tensor:
         model.train()
