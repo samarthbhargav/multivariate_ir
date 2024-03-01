@@ -234,8 +234,6 @@ class MVRLDenseModel(DenseModel):
             raise NotImplementedError(self.embed_formulation)
 
     def forward(self, query: Dict[str, Tensor] = None, passage: Dict[str, Tensor] = None):
-        print("###MVRL LOSS FUNC CALLED####")
-        
         q_reps = self.encode_query(query)
         p_reps = self.encode_passage(passage)
 
