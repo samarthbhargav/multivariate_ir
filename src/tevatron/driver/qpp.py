@@ -8,7 +8,7 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 from transformers import AutoConfig, AutoTokenizer, HfArgumentParser
 
-from tevatron.arguments import DataArguments, ModelArguments, MVRLTrainingArguments
+from tevatron.arguments import DataArguments, ModelArguments, MVRLTrainingArguments, StochasticArguments
 from tevatron.arguments import TevatronTrainingArguments as TrainingArguments
 from tevatron.data import EncodeCollator, EncodeDataset
 from tevatron.datasets import HFQueryDataset, HFCorpusDataset
@@ -16,6 +16,8 @@ from tevatron.datasets import HFQueryDataset, HFCorpusDataset
 from tevatron.modeling.dense_mvrl import MVRLDenseModel
 
 from dataclasses import dataclass, field
+
+from tevatron.modeling.dense_stochastic import StochasticDenseModel
 
 logger = logging.getLogger(__name__)
 
@@ -27,17 +29,19 @@ class QPPArguments:
 
 
 def main():
-    parser = HfArgumentParser((ModelArguments, DataArguments, TrainingArguments, MVRLTrainingArguments, QPPArguments))
+    parser = HfArgumentParser(
+        (ModelArguments, DataArguments, TrainingArguments, MVRLTrainingArguments, QPPArguments, StochasticArguments))
     if len(sys.argv) == 2 and sys.argv[1].endswith(".json"):
-        model_args, data_args, training_args, mvrl_args, qpp_args = parser.parse_json_file(
+        model_args, data_args, training_args, mvrl_args, qpp_args, stoch_args = parser.parse_json_file(
             json_file=os.path.abspath(sys.argv[1]))
     else:
-        model_args, data_args, training_args, mvrl_args, qpp_args = parser.parse_args_into_dataclasses()
+        model_args, data_args, training_args, mvrl_args, qpp_args, stoch_args = parser.parse_args_into_dataclasses()
         model_args: ModelArguments
         data_args: DataArguments
         training_args: TrainingArguments
         mvrl_args: MVRLTrainingArguments
         qpp_args: QPPArguments
+        stoch_args: StochasticArguments
 
     assert qpp_args.qpp_save_path is not None, "provide qpp_save_path"
 
@@ -58,21 +62,30 @@ def main():
         cache_dir=model_args.cache_dir,
     )
 
-    assert mvrl_args.model_type.startswith("mvrl")
-    assert data_args.add_var_token, "This flag has to be enabled for MVRL models"
+    assert mvrl_args.model_type.startswith("mvrl") or mvrl_args.model_type == "stochastic"
     tokenizer = AutoTokenizer.from_pretrained(
         model_args.model_name_or_path,
         cache_dir=model_args.cache_dir,
     )
 
-    assert "[VAR]" in tokenizer.all_special_tokens
-    model = MVRLDenseModel.load(
-        model_args=model_args,
-        mvrl_args=mvrl_args,
-        model_name_or_path=model_args.model_name_or_path,
-        config=config,
-        cache_dir=model_args.cache_dir
-    )
+    if mvrl_args.model_type.startswith("mvrl"):
+        assert data_args.add_var_token, "This flag has to be enabled for MVRL models"
+        assert "[VAR]" in tokenizer.all_special_tokens
+        model = MVRLDenseModel.load(
+            model_args=model_args,
+            mvrl_args=mvrl_args,
+            model_name_or_path=model_args.model_name_or_path,
+            config=config,
+            cache_dir=model_args.cache_dir
+        )
+    elif mvrl_args.model_type == "stochastic":
+        model = StochasticDenseModel.load(
+            model_name_or_path=model_args.model_name_or_path,
+            model_args=model_args,
+            stoch_args=stoch_args
+        )
+    else:
+        raise ValueError(mvrl_args.model_type)
 
     text_max_length = data_args.q_max_len if data_args.encode_is_qry else data_args.p_max_len
     if data_args.encode_is_qry:
@@ -109,10 +122,18 @@ def main():
             with torch.no_grad():
                 for k, v in batch.items():
                     batch[k] = v.to(training_args.device)
+
+                enc_kwargs = {}
+                if mvrl_args.model_type == "stochastic":
+                    enc_kwargs["n_iters"] = stoch_args.n_iters
+
                 if data_args.encode_is_qry:
-                    reps = model.encode_query(batch)
+                    reps = model.encode_query(batch, **enc_kwargs)
                 else:
-                    reps = model.encode_passage(batch)
+                    reps = model.encode_passage(batch, **enc_kwargs)
+
+                if mvrl_args.model_type == "stochastic":
+                    reps = StochasticDenseModel.get_mean_var(reps)
 
                 reps_mean, reps_var = reps
                 if qpp_args.qpp_method == "norm":

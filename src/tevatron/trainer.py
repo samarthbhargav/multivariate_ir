@@ -7,6 +7,7 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 import torch
 import torch.distributed as dist
 from torch import nn
+from torch.nn.parallel import DistributedDataParallel
 from torch.utils.data import DataLoader
 from transformers.trainer import Trainer
 import pytrec_eval
@@ -175,6 +176,11 @@ class GCTrainer(TevatronTrainer):
         loss_fn_cls = DistributedContrastiveLoss if self.args.negatives_x_device else SimpleContrastiveLoss
         loss_fn = loss_fn_cls()
 
+        logger.info("wrapping model in DDP")
+        self.model = DistributedDataParallel(self.model,
+                                             device_ids=[0],
+                                             output_device=0)
+
         self.gc = GradCache(
             models=[self.model, self.model],
             chunk_sizes=[self.args.gc_q_chunk_size, self.args.gc_p_chunk_size],
@@ -185,13 +191,19 @@ class GCTrainer(TevatronTrainer):
             scaler=self.scaler if self.args.fp16 else None,
         )
 
+    def _save(self, output_dir: Optional[str] = None):
+        try:
+            super()._save(output_dir)
+        except AttributeError:
+            self.model.module.save(output_dir)
+
     def training_step(self, model, inputs) -> torch.Tensor:
         model.train()
         queries, passages = self._prepare_inputs(inputs)
         queries, passages = {"query": queries}, {"passage": passages}
 
         _distributed = self.args.local_rank > -1
-        self.gc.models = [model, model]
+        # self.gc.models = [model, model]
         loss = self.gc(queries, passages, no_sync_except_last=_distributed)
 
         return loss / self._dist_loss_scale_factor
