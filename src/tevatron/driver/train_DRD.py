@@ -11,7 +11,8 @@ from transformers import AutoConfig, AutoTokenizer, HfArgumentParser, set_seed, 
 from tevatron.arguments import DataArguments, MVRLTrainingArguments
 from tevatron.distillation.arguments import DistilModelArguments, DistilTrainingArguments
 from tevatron.distillation.data import DistilTrainCollator, DistilTrainDataset, HFDistilTrainDataset
-from tevatron.distillation.trainer import DistilTrainer, ListwiseDistilTrainer, ListwiseDistilLabelsTrainer, ListwiseDistilPseudolabelsTrainer
+from tevatron.distillation.trainer import DistilTrainer, ListwiseDistilTrainer, ListwiseDistilLabelsTrainer, \
+    ListwiseDistilPseudolabelsTrainer, GCListwiseDistilLabelsTrainer
 from tevatron.driver.train import compute_metrics
 from tevatron.modeling import DenseModel
 from tevatron.modeling.dense_mvrl import MVRLDenseModel
@@ -211,7 +212,8 @@ def main():
             ),
         )
     elif training_args.kd_type == "drd_labels":
-        trainer = ListwiseDistilLabelsTrainer(
+        trainer_cls = GCListwiseDistilLabelsTrainer if training_args.grad_cache else ListwiseDistilLabelsTrainer
+        trainer = trainer_cls(
             teacher_model=teacher_model,
             data_args=data_args,
             model=model,
@@ -259,6 +261,7 @@ def main():
         logger.info(f"saving tokenizer to {training_args.output_dir}")
         tokenizer.save_pretrained(training_args.output_dir)
 
+    print(trainer)
     train_dataset.trainer = trainer
 
     if val_dataset:
