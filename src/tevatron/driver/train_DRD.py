@@ -52,8 +52,8 @@ def main():
             f"Output directory ({training_args.output_dir}) already exists and is not empty. Use --overwrite_output_dir to overcome."
         )
 
-    if not training_args.disable_distributed:
-        setup(rank=training_args.local_rank, world_size=torch.cuda.device_count())
+    #if not training_args.disable_distributed:
+    #    setup(rank=training_args.local_rank, world_size=torch.cuda.device_count())
 
     # Setup logging
     logging.basicConfig(
