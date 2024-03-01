@@ -476,7 +476,7 @@ class GCListwiseDistilLabelsTrainer(ListwiseDistilLabelsTrainer):
 
     def training_step(self, model, inputs) -> torch.Tensor:
         model.train()
-        queries, passages = self._prepare_inputs(inputs)
+        queries, passages, pair = self._prepare_inputs(inputs)
         queries, passages = {"query": queries}, {"passage": passages}
 
         _distributed = self.args.local_rank > -1
