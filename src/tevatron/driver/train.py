@@ -14,7 +14,7 @@ from tevatron.datasets import HFTrainDataset
 from tevatron.modeling import DenseModel
 from tevatron.modeling.dense_mvrl import MVRLDenseModel
 from tevatron.modeling.dense_stochastic import StochasticDenseModel
-from tevatron.trainer import GCTrainer, MVRLGradCacheWrapper
+from tevatron.trainer import GCTrainer
 from tevatron.trainer import TevatronTrainer as Trainer
 
 logger = logging.getLogger(__name__)
