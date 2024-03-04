@@ -14,7 +14,7 @@ from tevatron.datasets import HFTrainDataset
 from tevatron.modeling import DenseModel
 from tevatron.modeling.dense_mvrl import MVRLDenseModel
 from tevatron.modeling.dense_stochastic import StochasticDenseModel
-from tevatron.trainer import GCTrainer
+from tevatron.trainer import GCTrainer, MVRLGradCacheWrapper
 from tevatron.trainer import TevatronTrainer as Trainer
 
 logger = logging.getLogger(__name__)
@@ -40,7 +40,8 @@ def main():
         (ModelArguments, DataArguments, TrainingArguments, MVRLTrainingArguments, StochasticArguments))
 
     if len(sys.argv) == 2 and sys.argv[1].endswith(".json"):
-        model_args, data_args, training_args, mvrl_args = parser.parse_json_file(json_file=os.path.abspath(sys.argv[1]))
+        model_args, data_args, training_args, mvrl_args, stoch_args = parser.parse_json_file(
+            json_file=os.path.abspath(sys.argv[1]))
     else:
         model_args, data_args, training_args, mvrl_args, stoch_args = parser.parse_args_into_dataclasses()
         model_args: ModelArguments
@@ -59,7 +60,7 @@ def main():
             f"Output directory ({training_args.output_dir}) already exists and is not empty. Use --overwrite_output_dir to overcome."
         )
 
-    #if not training_args.disable_distributed:
+    # if not training_args.disable_distributed:
     #    setup(rank=training_args.local_rank, world_size=torch.cuda.device_count())
 
     # Setup logging
@@ -102,7 +103,7 @@ def main():
             config=config,
             cache_dir=model_args.cache_dir,
         )
-    elif mvrl_args.model_type == "mvrl_no_distill":
+    elif mvrl_args.model_type == "mvrl_no_distill" and not training_args.grad_cache:
         model = MVRLDenseModel.build(
             model_args,
             training_args,
@@ -110,6 +111,12 @@ def main():
             config=config,
             cache_dir=model_args.cache_dir,
         )
+    elif mvrl_args.model_type == "mvrl_no_distill" and training_args.grad_cache:
+        model = MVRLGradCacheWrapper.build(model_args,
+                                           training_args,
+                                           mvrl_args,
+                                           config=config,
+                                           cache_dir=model_args.cache_dir)
     elif mvrl_args.model_type == "stochastic":
         model = StochasticDenseModel.build(
             model_args,
