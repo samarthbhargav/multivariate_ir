@@ -218,8 +218,16 @@ class MVRLGradCacheWrapper(MVRLDenseModel):
         q_reps = self.encode_query(query)
         p_reps = self.encode_passage(passage)
 
+        print("q_reps: ", q_reps)
+        print("p_reps: ", p_reps)
+
+        try:
+            is_training = self.is_training
+        except AttributeError:
+            is_training = self.module.is_training
+
         if q_reps is None:
-            if self.is_training:
+            if is_training:
                 return p_reps
             else:
                 # inference
@@ -228,7 +236,7 @@ class MVRLGradCacheWrapper(MVRLDenseModel):
                                             is_logvar=self.var_activation == "logvar")
 
         if p_reps is None:
-            if self.is_training:
+            if is_training:
                 return q_reps
             else:
                 return self.get_faiss_embed(q_reps,
