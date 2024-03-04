@@ -4,11 +4,10 @@ import logging
 import os
 from typing import Dict
 
-import numpy as np
 import torch
 import torch.nn as nn
 from torch import Tensor
-from torch.distributions import MultivariateNormal
+
 
 from . import EncoderOutput
 from .dense import DenseModel
@@ -186,7 +185,7 @@ class MVRLDenseModel(DenseModel):
             if is_query:
                 # 1, \sum var, mean^2, mean
                 # rep[:, 1] = (var + eps).prod(1)
-                rep[:, 1] = var.prod(1)
+                rep[:, 1] = (var + eps).prod(1)
                 rep[:, 2:2 + D] = means ** 2
                 rep[:, 2 + D:] = means
             else:

@@ -6,14 +6,13 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 
 import torch
 import torch.distributed as dist
-from torch import nn, Tensor
+from torch import nn
 from torch.nn.parallel import DistributedDataParallel
 from torch.utils.data import DataLoader
 from transformers.trainer import Trainer
 import pytrec_eval
 
 from .loss import DistributedContrastiveLoss, SimpleContrastiveLoss
-from .modeling.dense_mvrl import MVRLDenseModel
 
 logger = logging.getLogger(__name__)
 
