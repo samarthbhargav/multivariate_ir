@@ -61,7 +61,8 @@ def main():
         )
 
     if not training_args.disable_distributed:
-       setup(rank=training_args.local_rank, world_size=torch.cuda.device_count())
+        logger.info("setting up distributed mode")
+        setup(rank=training_args.local_rank, world_size=torch.cuda.device_count())
 
     # Setup logging
     logging.basicConfig(
