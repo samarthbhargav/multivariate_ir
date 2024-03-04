@@ -12,7 +12,7 @@ from tevatron.arguments import DataArguments, MVRLTrainingArguments
 from tevatron.distillation.arguments import DistilModelArguments, DistilTrainingArguments
 from tevatron.distillation.data import DistilTrainCollator, DistilTrainDataset, HFDistilTrainDataset
 from tevatron.distillation.trainer import DistilTrainer, ListwiseDistilTrainer, ListwiseDistilLabelsTrainer, \
-    ListwiseDistilPseudolabelsTrainer, GCListwiseDistilLabelsTrainer
+    ListwiseDistilPseudolabelsTrainer
 from tevatron.driver.train import compute_metrics
 from tevatron.modeling import DenseModel
 from tevatron.modeling.dense_mvrl import MVRLDenseModel
@@ -53,7 +53,7 @@ def main():
             f"Output directory ({training_args.output_dir}) already exists and is not empty. Use --overwrite_output_dir to overcome."
         )
 
-    #if not training_args.disable_distributed:
+    # if not training_args.disable_distributed:
     #    setup(rank=training_args.local_rank, world_size=torch.cuda.device_count())
 
     # Setup logging
@@ -197,7 +197,7 @@ def main():
     else:
         callbacks = None
 
-    if training_args.kd_type== "drd":
+    if training_args.kd_type == "drd":
         trainer = ListwiseDistilTrainer(
             teacher_model=teacher_model,
             model=model,
@@ -212,8 +212,7 @@ def main():
             ),
         )
     elif training_args.kd_type == "drd_labels":
-        trainer_cls = GCListwiseDistilLabelsTrainer if training_args.grad_cache else ListwiseDistilLabelsTrainer
-        trainer = trainer_cls(
+        trainer = ListwiseDistilLabelsTrainer(
             teacher_model=teacher_model,
             data_args=data_args,
             model=model,
