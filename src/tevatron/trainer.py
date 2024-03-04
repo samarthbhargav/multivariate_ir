@@ -180,7 +180,8 @@ class GCTrainer(TevatronTrainer):
         logger.info("wrapping model in DDP")
         self.model = DistributedDataParallel(self.model,
                                              device_ids=[0],
-                                             output_device=0)
+                                             output_device=0,
+                                             find_unused_parameters=True)
 
         self.gc = GradCache(
             models=[self.model, self.model],
@@ -210,40 +211,40 @@ class GCTrainer(TevatronTrainer):
         return loss / self._dist_loss_scale_factor
 
 
-# class MVRLGradCacheWrapper(MVRLDenseModel):
-#     def forward(self, query: Dict[str, Tensor] = None, passage: Dict[str, Tensor] = None):
-#         """
-#         This should just return the mean/var vectors.
-#         """
-#         q_reps = self.encode_query(query)
-#         p_reps = self.encode_passage(passage)
-#
-#         print("q_reps: ", q_reps)
-#         print("p_reps: ", p_reps)
-#
-#         try:
-#             is_training = self.is_training
-#         except AttributeError:
-#             is_training = self.module.is_training
-#
-#         if q_reps is None:
-#             if is_training:
-#                 return p_reps
-#             else:
-#                 # inference
-#                 return self.get_faiss_embed(p_reps,
-#                                             is_query=False,
-#                                             is_logvar=self.var_activation == "logvar")
-#
-#         if p_reps is None:
-#             if is_training:
-#                 return q_reps
-#             else:
-#                 return self.get_faiss_embed(q_reps,
-#                                             is_query=True,
-#                                             is_logvar=self.var_activation == "logvar")
-#
-#         raise NotImplementedError()
+class MVRLGradCacheWrapper(MVRLDenseModel):
+    def forward(self, query: Dict[str, Tensor] = None, passage: Dict[str, Tensor] = None):
+        """
+        This should just return the mean/var vectors.
+        """
+        q_reps = self.encode_query(query)
+        p_reps = self.encode_passage(passage)
+
+        print("q_reps: ", q_reps)
+        print("p_reps: ", p_reps)
+
+        try:
+            is_training = self.is_training
+        except AttributeError:
+            is_training = self.module.is_training
+
+        if q_reps is None:
+            if is_training:
+                return p_reps
+            else:
+                # inference
+                return self.get_faiss_embed(p_reps,
+                                            is_query=False,
+                                            is_logvar=self.var_activation == "logvar")
+
+        if p_reps is None:
+            if is_training:
+                return q_reps
+            else:
+                return self.get_faiss_embed(q_reps,
+                                            is_query=True,
+                                            is_logvar=self.var_activation == "logvar")
+
+        raise NotImplementedError()
 #
 #
 # class GCMVRLTrainer(TevatronTrainer):
