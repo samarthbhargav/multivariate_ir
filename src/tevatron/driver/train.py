@@ -104,7 +104,7 @@ def main():
             config=config,
             cache_dir=model_args.cache_dir,
         )
-    elif mvrl_args.model_type == "mvrl_no_distill" and not training_args.grad_cache:
+    elif mvrl_args.model_type == "mvrl_no_distill":
         model = MVRLDenseModel.build(
             model_args,
             training_args,
@@ -112,12 +112,6 @@ def main():
             config=config,
             cache_dir=model_args.cache_dir,
         )
-    elif mvrl_args.model_type == "mvrl_no_distill" and training_args.grad_cache:
-        model = MVRLGradCacheWrapper.build(model_args,
-                                           training_args,
-                                           mvrl_args,
-                                           config=config,
-                                           cache_dir=model_args.cache_dir)
     elif mvrl_args.model_type == "stochastic":
         model = StochasticDenseModel.build(
             model_args,
@@ -126,6 +120,8 @@ def main():
             config=config,
             cache_dir=model_args.cache_dir
         )
+        if training_args.grad_cache:
+            assert mvrl_args.embed_formulation == "full_kl"
     else:
         raise NotImplementedError(mvrl_args.model_type)
 

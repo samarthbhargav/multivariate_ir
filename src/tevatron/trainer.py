@@ -210,105 +210,105 @@ class GCTrainer(TevatronTrainer):
         return loss / self._dist_loss_scale_factor
 
 
-class MVRLGradCacheWrapper(MVRLDenseModel):
-    def forward(self, query: Dict[str, Tensor] = None, passage: Dict[str, Tensor] = None):
-        """
-        This should just return the mean/var vectors.
-        """
-        q_reps = self.encode_query(query)
-        p_reps = self.encode_passage(passage)
-
-        print("q_reps: ", q_reps)
-        print("p_reps: ", p_reps)
-
-        try:
-            is_training = self.is_training
-        except AttributeError:
-            is_training = self.module.is_training
-
-        if q_reps is None:
-            if is_training:
-                return p_reps
-            else:
-                # inference
-                return self.get_faiss_embed(p_reps,
-                                            is_query=False,
-                                            is_logvar=self.var_activation == "logvar")
-
-        if p_reps is None:
-            if is_training:
-                return q_reps
-            else:
-                return self.get_faiss_embed(q_reps,
-                                            is_query=True,
-                                            is_logvar=self.var_activation == "logvar")
-
-        raise NotImplementedError()
-
-
-class GCMVRLTrainer(TevatronTrainer):
-
-    def loss_fn(self, p_reps, q_reps, **kwargs) -> torch.Tensor:
-        q_reps_mean, q_reps_var = q_reps
-        p_reps_mean, p_reps_var = p_reps
-        # for training
-
-        if self.model.negatives_x_device:
-            q_reps_mean = self.model._dist_gather_tensor(q_reps_mean)
-            q_reps_var = self.model._dist_gather_tensor(q_reps_var)
-            p_reps_mean = self.model._dist_gather_tensor(p_reps_mean)
-            p_reps_var = self.model._dist_gather_tensor(p_reps_var)
-
-        scores = self.model.compute_similarity(q_reps_mean=q_reps_mean,
-                                               q_reps_var=q_reps_var,
-                                               p_reps_mean=p_reps_mean,
-                                               p_reps_var=p_reps_var)
-        scores = scores.view(q_reps_mean.size(0), -1)
-
-        target = torch.arange(scores.size(0), device=scores.device, dtype=torch.long)
-        target = target * (p_reps_mean.size(0) // q_reps_mean.size(0))
-        loss = self.compute_loss(scores, target)
-        if self.model.negatives_x_device:
-            loss = loss * self.model.world_size  # counter average weight reduction
-
-        return loss
-
-    def __init__(self, *args, **kwargs):
-        logger.info("Initializing Gradient Cache Trainer")
-        if not _grad_cache_available:
-            raise ValueError(
-                "Grad Cache package not available. You can obtain it from https://github.com/luyug/GradCache."
-            )
-        super().__init__(*args, **kwargs)
-
-        logger.info("wrapping model in DDP")
-        assert isinstance(self.model, MVRLGradCacheWrapper)
-        self.model = DistributedDataParallel(self.model,
-                                             device_ids=[0],
-                                             output_device=0)
-
-        self.gc = GradCache(
-            models=[self.model, self.model],
-            chunk_sizes=[self.args.gc_q_chunk_size, self.args.gc_p_chunk_size],
-            loss_fn=self.loss_fn,
-            split_input_fn=split_dense_inputs,
-            fp16=self.args.fp16,
-            scaler=self.scaler if self.args.fp16 else None,
-        )
-
-    def _save(self, output_dir: Optional[str] = None):
-        try:
-            super()._save(output_dir)
-        except AttributeError:
-            self.model.module.save(output_dir)
-
-    def training_step(self, model, inputs) -> torch.Tensor:
-        model.train()
-        queries, passages = self._prepare_inputs(inputs)
-        queries, passages = {"query": queries}, {"passage": passages}
-
-        _distributed = self.args.local_rank > -1
-        # self.gc.models = [model, model]
-        loss = self.gc(queries, passages, no_sync_except_last=_distributed)
-
-        return loss / self._dist_loss_scale_factor
+# class MVRLGradCacheWrapper(MVRLDenseModel):
+#     def forward(self, query: Dict[str, Tensor] = None, passage: Dict[str, Tensor] = None):
+#         """
+#         This should just return the mean/var vectors.
+#         """
+#         q_reps = self.encode_query(query)
+#         p_reps = self.encode_passage(passage)
+#
+#         print("q_reps: ", q_reps)
+#         print("p_reps: ", p_reps)
+#
+#         try:
+#             is_training = self.is_training
+#         except AttributeError:
+#             is_training = self.module.is_training
+#
+#         if q_reps is None:
+#             if is_training:
+#                 return p_reps
+#             else:
+#                 # inference
+#                 return self.get_faiss_embed(p_reps,
+#                                             is_query=False,
+#                                             is_logvar=self.var_activation == "logvar")
+#
+#         if p_reps is None:
+#             if is_training:
+#                 return q_reps
+#             else:
+#                 return self.get_faiss_embed(q_reps,
+#                                             is_query=True,
+#                                             is_logvar=self.var_activation == "logvar")
+#
+#         raise NotImplementedError()
+#
+#
+# class GCMVRLTrainer(TevatronTrainer):
+#
+#     def loss_fn(self, p_reps, q_reps, **kwargs) -> torch.Tensor:
+#         q_reps_mean, q_reps_var = q_reps
+#         p_reps_mean, p_reps_var = p_reps
+#         # for training
+#
+#         if self.model.negatives_x_device:
+#             q_reps_mean = self.model._dist_gather_tensor(q_reps_mean)
+#             q_reps_var = self.model._dist_gather_tensor(q_reps_var)
+#             p_reps_mean = self.model._dist_gather_tensor(p_reps_mean)
+#             p_reps_var = self.model._dist_gather_tensor(p_reps_var)
+#
+#         scores = self.model.compute_similarity(q_reps_mean=q_reps_mean,
+#                                                q_reps_var=q_reps_var,
+#                                                p_reps_mean=p_reps_mean,
+#                                                p_reps_var=p_reps_var)
+#         scores = scores.view(q_reps_mean.size(0), -1)
+#
+#         target = torch.arange(scores.size(0), device=scores.device, dtype=torch.long)
+#         target = target * (p_reps_mean.size(0) // q_reps_mean.size(0))
+#         loss = self.model.compute_loss(scores, target)
+#         if self.model.negatives_x_device:
+#             loss = loss * self.model.world_size  # counter average weight reduction
+#
+#         return loss
+#
+#     def __init__(self, *args, **kwargs):
+#         logger.info("Initializing Gradient Cache Trainer")
+#         if not _grad_cache_available:
+#             raise ValueError(
+#                 "Grad Cache package not available. You can obtain it from https://github.com/luyug/GradCache."
+#             )
+#         super().__init__(*args, **kwargs)
+#
+#         logger.info("wrapping model in DDP")
+#         assert isinstance(self.model, MVRLGradCacheWrapper)
+#         self.model = DistributedDataParallel(self.model,
+#                                              device_ids=[0],
+#                                              output_device=0)
+#
+#         self.gc = GradCache(
+#             models=[self.model, self.model],
+#             chunk_sizes=[self.args.gc_q_chunk_size, self.args.gc_p_chunk_size],
+#             loss_fn=self.loss_fn,
+#             split_input_fn=split_dense_inputs,
+#             fp16=self.args.fp16,
+#             scaler=self.scaler if self.args.fp16 else None,
+#         )
+#
+#     def _save(self, output_dir: Optional[str] = None):
+#         try:
+#             super()._save(output_dir)
+#         except AttributeError:
+#             self.model.module.save(output_dir)
+#
+#     def training_step(self, model, inputs) -> torch.Tensor:
+#         model.train()
+#         queries, passages = self._prepare_inputs(inputs)
+#         queries, passages = {"query": queries}, {"passage": passages}
+#
+#         _distributed = self.args.local_rank > -1
+#         # self.gc.models = [model, model]
+#         loss = self.gc(queries, passages, no_sync_except_last=_distributed)
+#
+#         return loss / self._dist_loss_scale_factor
