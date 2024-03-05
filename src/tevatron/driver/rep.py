@@ -138,8 +138,8 @@ def main():
                 predicted_mean.append(reps_mean.cpu().detach().numpy())
                 predicted_var.append(reps_var.cpu().detach().numpy())
 
-    predicted_mean = np.vstack(*predicted_mean)
-    predicted_var = np.vstack(*predicted_var)
+    predicted_mean = np.vstack(predicted_mean)
+    predicted_var = np.vstack(predicted_var)
 
     assert len(predicted_mean) == len(predicted_var) == len(lookup_indices)
     logger.info(f"saving to {rep_args.rep_save_path}")
