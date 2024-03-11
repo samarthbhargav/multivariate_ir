@@ -156,7 +156,7 @@ class MVRLTrainingArguments:
     embed_formulation: str = field(default="original",
                                    metadata={"help": "whether to use the 'original' or 'updated' formulation"})
     
-    clamp_mean: bool = field(default=False, metadata={"help": "clamp the means w.r.t to the sqrt of a given C value"})
+    clamp_mean: str = field(default=None, metadata={"help": "'clamp' or 'scale' the means w.r.t to the sqrt of a given C value"})
     C: float = field(default=2)
 
 @dataclass

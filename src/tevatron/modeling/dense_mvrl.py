@@ -139,7 +139,7 @@ class MVRLDenseModel(DenseModel):
             embed_during_train=False,
             embed_formulation="original",
             var_activation_params: Dict = None,
-            clamp_mean: bool = False,
+            clamp_mean: str = None,
             C: int = 2,
     ):
         super().__init__(lm_q=lm_q, lm_p=lm_p, pooler=pooler, untie_encoder=untie_encoder,
@@ -306,12 +306,15 @@ class MVRLDenseModel(DenseModel):
             p_reps = self.pooler(p=p_hidden)  # D * d
         else:
             p_reps = p_hidden[:, 0]
+
+        mean = self.projection_mean(p_reps)
+        if self.clamp_mean == "clamp":
+            mean = mean.clamp(min=-np.sqrt(self.C), max=np.sqrt(self.C))
+        elif self.clamp_mean == "scale":
+            mean = mean * (self.C / torch.norm(mean, p=2, dim=1).view(-1, 1))
+
         # assumes VAR token is always after CLS
         # TODO: any way to check the above?
-
-        mean = self.projection_mean(p_reps).clamp(min=-np.sqrt(self.C),
-                                                  max=np.sqrt(self.C)) if self.clamp_mean else self.projection_mean(
-            p_reps)
         var = self.projection_var(p_hidden[:, 1])
 
         return mean, var
@@ -326,12 +329,16 @@ class MVRLDenseModel(DenseModel):
         else:
             q_reps = q_hidden[:, 0]
 
-        mean = self.projection_mean(q_reps).clamp(min=-np.sqrt(self.C),
-                                                  max=np.sqrt(self.C)) if self.clamp_mean else self.projection_mean(
-            q_reps)
+        mean = self.projection_mean(q_reps)
+        if self.clamp_mean == "clamp":
+            mean = mean.clamp(min=-np.sqrt(self.C), max=np.sqrt(self.C))
+        elif self.clamp_mean == "scale":
+            mean = mean * (self.C / torch.norm(mean, p=2, dim=1).view(-1, 1))
+
         # assumes VAR token is always after CLS
         # TODO: any way to check the above?
         var = self.projection_var(q_hidden[:, 1])
+
         return mean, var
 
     def compute_similarity(self, q_reps_mean, p_reps_mean, q_reps_var=None, p_reps_var=None):
