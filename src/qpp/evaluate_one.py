@@ -24,9 +24,8 @@ if __name__ == '__main__':
 
     # read predicted performance
     pred_performance = {}
-    pp_name = args.predicted
-    pp_file = os.path.join(args.predicted_dir, args.predicted)
-    print(f"Reading Predictions: {pp_name} ({pp_file})")
+    pp_file = args.predicted
+    print(f"Reading Predictions: {pp_file}")
     with open(pp_file) as reader:
         for line in reader:
             qid, perf = line.split()
