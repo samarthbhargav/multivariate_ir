@@ -1,19 +1,17 @@
 import copy
 import json
 import logging
-import os
-from typing import Dict
-
 import numpy as np
+import os
 import torch
 import torch.nn as nn
 from torch import Tensor
 from torch.distributions import MultivariateNormal
+from transformers import PreTrainedModel, TrainingArguments
+from typing import Dict
 
 from . import EncoderOutput
 from .dense import DenseModel
-from transformers import PreTrainedModel, TrainingArguments
-
 from ..arguments import ModelArguments, MVRLTrainingArguments
 
 logger = logging.getLogger(__name__)
@@ -65,6 +63,8 @@ class MVRLDenseModel(DenseModel):
             embed_formulation=mvrl_args.embed_formulation,
             negatives_x_device=train_args.negatives_x_device,
             untie_encoder=model_args.untie_encoder,
+            clamp_mean=mvrl_args.clamp_mean,
+            C=mvrl_args.C
         )
         return model
 
@@ -115,7 +115,9 @@ class MVRLDenseModel(DenseModel):
                     embed_during_train=mvrl_args.embed_during_train,
                     embed_formulation=mvrl_args.embed_formulation,
                     var_activation=mvrl_args.var_activation,
-                    var_activation_params={"beta": mvrl_args.var_activation_param_b})
+                    var_activation_params={"beta": mvrl_args.var_activation_param_b},
+                    clamp_mean=mvrl_args.clamp_mean,
+                    C=mvrl_args.C)
 
         mean_path = os.path.join(model_name_or_path, "projection_mean")
         logger.info(f"loading projection_mean from {mean_path}")
@@ -136,7 +138,9 @@ class MVRLDenseModel(DenseModel):
             var_activation="softplus",
             embed_during_train=False,
             embed_formulation="original",
-            var_activation_params: Dict = None
+            var_activation_params: Dict = None,
+            clamp_mean: str = None,
+            C: int = 2,
     ):
         super().__init__(lm_q=lm_q, lm_p=lm_p, pooler=pooler, untie_encoder=untie_encoder,
                          negatives_x_device=negatives_x_device)
@@ -157,6 +161,9 @@ class MVRLDenseModel(DenseModel):
             self.projection_var = nn.Linear(output_dim, self.projection_dim, bias=False)
         else:
             raise NotImplementedError(self.var_activation)
+
+        self.clamp_mean = clamp_mean
+        self.C = C
 
         self.embed_during_train = embed_during_train
         self.embed_formulation = embed_formulation
@@ -299,9 +306,18 @@ class MVRLDenseModel(DenseModel):
             p_reps = self.pooler(p=p_hidden)  # D * d
         else:
             p_reps = p_hidden[:, 0]
+
+        mean = self.projection_mean(p_reps)
+        if self.clamp_mean == "clamp":
+            mean = mean.clamp(min=-np.sqrt(self.C), max=np.sqrt(self.C))
+        elif self.clamp_mean == "scale":
+            mean = mean * (self.C / torch.norm(mean, p=2, dim=1).view(-1, 1))
+
         # assumes VAR token is always after CLS
         # TODO: any way to check the above?
-        return self.projection_mean(p_reps), self.projection_var(p_hidden[:, 1])
+        var = self.projection_var(p_hidden[:, 1])
+
+        return mean, var
 
     def encode_query(self, qry):
         if qry is None:
@@ -314,9 +330,15 @@ class MVRLDenseModel(DenseModel):
             q_reps = q_hidden[:, 0]
 
         mean = self.projection_mean(q_reps)
+        if self.clamp_mean == "clamp":
+            mean = mean.clamp(min=-np.sqrt(self.C), max=np.sqrt(self.C))
+        elif self.clamp_mean == "scale":
+            mean = mean * (self.C / torch.norm(mean, p=2, dim=1).view(-1, 1))
+
         # assumes VAR token is always after CLS
         # TODO: any way to check the above?
         var = self.projection_var(q_hidden[:, 1])
+
         return mean, var
 
     def compute_similarity(self, q_reps_mean, p_reps_mean, q_reps_var=None, p_reps_var=None):
@@ -375,3 +397,4 @@ class MVRLDenseModel(DenseModel):
         var_path = os.path.join(input_dir, "projection_var")
         logger.info(f"loading projection_var from {var_path}")
         self.projection_var.load_state_dict(torch.load(var_path, map_location="cpu"))
+
