@@ -99,6 +99,8 @@ class DataArguments:
     group_2: int = field(default=12)
     group_3: int = field(default=13)
 
+    load_tokenized: bool = field(default=False, metadata={"help": "whether load tokenized dataset from cache"})
+
     def __post_init__(self):
         if self.dataset_name is not None:
             info = self.dataset_name.split("/")
@@ -153,7 +155,9 @@ class MVRLTrainingArguments:
         "help": "if set, uses the embedding similarity instead of KL in the loss"})
     embed_formulation: str = field(default="original",
                                    metadata={"help": "whether to use the 'original' or 'updated' formulation"})
-
+    
+    clamp_mean: str = field(default=None, metadata={"help": "'clamp' or 'scale' the means w.r.t to the sqrt of a given C value"})
+    C: float = field(default=2)
 
 @dataclass
 class StochasticArguments:
