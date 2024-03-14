@@ -5,13 +5,26 @@ import torch
 import torch.distributed as dist
 import torch.nn.functional as F
 from collections import defaultdict
+
+from torch.nn.parallel import DistributedDataParallel
+
 from tevatron.distillation.arguments import DistilTrainingArguments
 from torch import nn
 from torch.utils.data import DataLoader
 from transformers.trainer import Trainer
 from typing import Any, Dict, List, Optional, Tuple, Union
 
+from tevatron.loss import DistributedContrastiveLoss, SimpleContrastiveLoss
+from tevatron.trainer import split_dense_inputs, get_dense_rep
+
 logger = logging.getLogger(__name__)
+
+try:
+    from grad_cache import GradCache
+
+    _grad_cache_available = True
+except ModuleNotFoundError:
+    _grad_cache_available = False
 
 
 class DistilTrainer(Trainer):
@@ -378,19 +391,19 @@ class ListwiseDistilPseudolabelsTrainer(DistilTrainer):
 
         student_scores = model(query=query, passage=passage).scores
 
-        #with torch.no_grad():
+        # with torch.no_grad():
         #    teacher_scores = self.teacher_model(pair=pair).scores
         #    if self.args.negatives_x_device:
         #         teacher_scores = self._dist_gather_tensor(teacher_scores)
 
         #    # CL-DRD approach: pseudolabels instead of raw teacher scores
         #    teacher_scores = teacher_scores.view(student_scores.size(0), -1)
-        
+
         # labels w.r.t teacher
         teacher_scores = torch.ones(student_scores.size(0), self.labels.size(0)) * self.labels
         teacher_scores = teacher_scores.to(student_scores.device)
 
-        index = torch.arange(teacher_scores.size(0)*teacher_scores.size(1), device=teacher_scores.device)
+        index = torch.arange(teacher_scores.size(0) * teacher_scores.size(1), device=teacher_scores.device)
         student_scores = torch.gather(student_scores, 1, index.view(student_scores.size(0), -1))
 
         if self.args.softmax_norm:
@@ -426,6 +439,51 @@ class ListwiseDistilPseudolabelsTrainer(DistilTrainer):
         loss = torch.mean(losses[pairs_mask])
 
         return loss
+
+
+class GCListwiseDistilLabelsTrainer(ListwiseDistilLabelsTrainer):
+    def __init__(self, teacher_model, *args, **kwargs):
+        logger.info("Initializing Gradient Cache Trainer")
+        if not _grad_cache_available:
+            raise ValueError(
+                "Grad Cache package not available. You can obtain it from https://github.com/luyug/GradCache."
+            )
+        super().__init__(teacher_model, *args, **kwargs)
+
+        loss_fn_cls = DistributedContrastiveLoss if self.args.negatives_x_device else SimpleContrastiveLoss
+        loss_fn = loss_fn_cls()
+
+        logger.info("wrapping model in DDP")
+        self.model = DistributedDataParallel(self.model,
+                                             device_ids=[0],
+                                             output_device=0)
+
+        self.gc = GradCache(
+            models=[self.model, self.model],
+            chunk_sizes=[self.args.gc_q_chunk_size, self.args.gc_p_chunk_size],
+            loss_fn=loss_fn,
+            split_input_fn=split_dense_inputs,
+            get_rep_fn=get_dense_rep,
+            fp16=self.args.fp16,
+            scaler=self.scaler if self.args.fp16 else None,
+        )
+
+    def _save(self, output_dir: Optional[str] = None):
+        try:
+            super()._save(output_dir)
+        except AttributeError:
+            self.model.module.save(output_dir)
+
+    def training_step(self, model, inputs) -> torch.Tensor:
+        model.train()
+        queries, passages, pair = self._prepare_inputs(inputs)
+        queries, passages = {"query": queries}, {"passage": passages}
+
+        _distributed = self.args.local_rank > -1
+        # self.gc.models = [model, model]
+        loss = self.gc(queries, passages, no_sync_except_last=_distributed)
+
+        return loss / self._dist_loss_scale_factor
 
 # class ListwiseDistilPseudolabelsTrainer(DistilTrainer):
 #     """ CLDRD paper: pseudolabels.

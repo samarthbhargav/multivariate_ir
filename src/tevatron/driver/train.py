@@ -40,7 +40,8 @@ def main():
         (ModelArguments, DataArguments, TrainingArguments, MVRLTrainingArguments, StochasticArguments))
 
     if len(sys.argv) == 2 and sys.argv[1].endswith(".json"):
-        model_args, data_args, training_args, mvrl_args = parser.parse_json_file(json_file=os.path.abspath(sys.argv[1]))
+        model_args, data_args, training_args, mvrl_args, stoch_args = parser.parse_json_file(
+            json_file=os.path.abspath(sys.argv[1]))
     else:
         model_args, data_args, training_args, mvrl_args, stoch_args = parser.parse_args_into_dataclasses()
         model_args: ModelArguments
@@ -59,8 +60,9 @@ def main():
             f"Output directory ({training_args.output_dir}) already exists and is not empty. Use --overwrite_output_dir to overcome."
         )
 
-    #if not training_args.disable_distributed:
-    #    setup(rank=training_args.local_rank, world_size=torch.cuda.device_count())
+    if not training_args.disable_distributed:
+        logger.info("setting up distributed mode")
+        setup(rank=training_args.local_rank, world_size=torch.cuda.device_count())
 
     # Setup logging
     logging.basicConfig(
@@ -118,6 +120,8 @@ def main():
             config=config,
             cache_dir=model_args.cache_dir
         )
+        if training_args.grad_cache:
+            assert mvrl_args.embed_formulation == "full_kl"
     else:
         raise NotImplementedError(mvrl_args.model_type)
 

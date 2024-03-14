@@ -179,7 +179,8 @@ class GCTrainer(TevatronTrainer):
         logger.info("wrapping model in DDP")
         self.model = DistributedDataParallel(self.model,
                                              device_ids=[0],
-                                             output_device=0)
+                                             output_device=0,
+                                             find_unused_parameters=True)
 
         self.gc = GradCache(
             models=[self.model, self.model],

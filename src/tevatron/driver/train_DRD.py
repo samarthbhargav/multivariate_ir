@@ -11,7 +11,8 @@ from transformers import AutoConfig, AutoTokenizer, HfArgumentParser, set_seed, 
 from tevatron.arguments import DataArguments, MVRLTrainingArguments
 from tevatron.distillation.arguments import DistilModelArguments, DistilTrainingArguments
 from tevatron.distillation.data import DistilTrainCollator, DistilTrainDataset, HFDistilTrainDataset
-from tevatron.distillation.trainer import DistilTrainer, ListwiseDistilTrainer, ListwiseDistilLabelsTrainer, ListwiseDistilPseudolabelsTrainer
+from tevatron.distillation.trainer import DistilTrainer, ListwiseDistilTrainer, ListwiseDistilLabelsTrainer, \
+    ListwiseDistilPseudolabelsTrainer
 from tevatron.driver.train import compute_metrics
 from tevatron.modeling import DenseModel
 from tevatron.modeling.dense_mvrl import MVRLDenseModel
@@ -52,7 +53,7 @@ def main():
             f"Output directory ({training_args.output_dir}) already exists and is not empty. Use --overwrite_output_dir to overcome."
         )
 
-    #if not training_args.disable_distributed:
+    # if not training_args.disable_distributed:
     #    setup(rank=training_args.local_rank, world_size=torch.cuda.device_count())
 
     # Setup logging
@@ -196,7 +197,7 @@ def main():
     else:
         callbacks = None
 
-    if training_args.kd_type== "drd":
+    if training_args.kd_type == "drd":
         trainer = ListwiseDistilTrainer(
             teacher_model=teacher_model,
             model=model,
@@ -259,6 +260,7 @@ def main():
         logger.info(f"saving tokenizer to {training_args.output_dir}")
         tokenizer.save_pretrained(training_args.output_dir)
 
+    print(trainer)
     train_dataset.trainer = trainer
 
     if val_dataset:
