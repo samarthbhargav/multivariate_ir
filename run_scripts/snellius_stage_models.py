@@ -7,7 +7,13 @@ from tqdm import tqdm
 
 def walk_through_files(path, exclude_fnames, exclude_extensions, exclude_folder_prefixes):
     for (dirpath, dirnames, filenames) in os.walk(path):
-        if any([dirpath.startswith(_) for _ in exclude_folder_prefixes]):
+        dirs = dirpath.split("/")
+        skip = False
+        for dir_part in dirs:
+            if any([dir_part.startswith(_) for _ in exclude_folder_prefixes]):
+                skip = True
+                break
+        if skip:
             print(f"skipping {dirpath}")
             continue
         for filename in filenames:
@@ -34,7 +40,7 @@ if __name__ == '__main__':
 
     EXCL_FILES = {"eval_result.json", "trainer_state.csv", ""}
     EXCL_EXT = {".pkl", ".log", ".run", ".zip"}
-    EXCL_FOLDERS_PREFIX = {"checkpoint", "runs", "mean", "qpp", "original", "updated"}
+    EXCL_FOLDERS_PREFIX = {"checkpoint", "runs", "mean", "qpp", "original", "updated", "rep"}
     files_to_transfer = list(walk_through_files(inp, exclude_fnames=EXCL_FILES, exclude_extensions=EXCL_EXT,
                                                 exclude_folder_prefixes=EXCL_FOLDERS_PREFIX))
 
