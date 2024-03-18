@@ -25,7 +25,7 @@ def walk_through_files(path, exclude_fnames, exclude_extensions, exclude_folder_
                 print(f"skipping {full_path}")
                 continue
 
-            yield full_path
+            yield dirpath, full_path
 
 
 if __name__ == '__main__':
@@ -44,5 +44,8 @@ if __name__ == '__main__':
     files_to_transfer = list(walk_through_files(inp, exclude_fnames=EXCL_FILES, exclude_extensions=EXCL_EXT,
                                                 exclude_folder_prefixes=EXCL_FOLDERS_PREFIX))
 
-    for file in tqdm(files_to_transfer, desc="transferring files"):
-        print(f"transferring {file}")
+    for dir_path, file_path in tqdm(files_to_transfer, desc="transferring files"):
+        print(f"transferring [{dir_path}]: {file_path}")
+        dest_path = out / file_path
+        print(dest_path)
+        print()
