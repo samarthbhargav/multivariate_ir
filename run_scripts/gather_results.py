@@ -72,7 +72,7 @@ if __name__ == '__main__':
     for dir_path, file_path in tqdm(files_to_transfer, desc="transferring files"):
         path_pref_removed = file_path[len(os.path.abspath(args.input_dir)) + 1:]
         dest_dir = out / "_".join(path_pref_removed.split("/")[:-1])
-        os.makedirs(os.path.dirname(dest_dir), exist_ok=True)
+        os.makedirs(dest_dir, exist_ok=True)
         dest_path = dest_dir / file_path.split("/")[-1]
         print(f"transferring: {file_path} to {dest_path}")
         shutil.copy(file_path, dest_path)
