@@ -49,7 +49,7 @@ if __name__ == '__main__':
     for dir_path, file_path in tqdm(files_to_transfer, desc="transferring files"):
         print(f"transferring [{dir_path}]: {file_path}")
 
-        path_pref_removed = file_path.lstrip(inp)
+        path_pref_removed = file_path.lstrip(os.path.abspath(args.input_dir))
         print(path_pref_removed)
         dest_path = out / file_path
         print(out, dest_path)
