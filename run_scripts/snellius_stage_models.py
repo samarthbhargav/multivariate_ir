@@ -7,6 +7,7 @@ from tqdm import tqdm
 
 def walk_through_files(path, exclude_fnames, exclude_extensions, exclude_folder_prefixes):
     for (dirpath, dirnames, filenames) in os.walk(path):
+        print(dirnames)
         dirs = dirpath.split("/")
         skip = False
         for dir_part in dirs:
