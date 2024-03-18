@@ -29,7 +29,6 @@ def walk_through_files(path, exclude_fnames, exclude_extensions, exclude_folder_
             yield dirpath, full_path
 
 
-
 if __name__ == '__main__':
     parser = argparse.ArgumentParser("snellius_state_models.py")
     parser.add_argument("--input_dir", help="path to input dir", required=True)
@@ -47,10 +46,7 @@ if __name__ == '__main__':
                                                 exclude_folder_prefixes=EXCL_FOLDERS_PREFIX))
 
     for dir_path, file_path in tqdm(files_to_transfer, desc="transferring files"):
-        print(f"transferring [{dir_path}]: {file_path}")
-
-        path_pref_removed = file_path[len(os.path.abspath(args.input_dir)):]
-        print(path_pref_removed)
-        dest_path = out / file_path
-        print(out, dest_path)
-        print()
+        path_pref_removed = file_path[len(os.path.abspath(args.input_dir)) + 1:]
+        dest_path = out / path_pref_removed
+        print(f"transferring [{dir_path}]: {file_path} to {dest_path}")
+        
