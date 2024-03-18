@@ -76,3 +76,14 @@ if __name__ == '__main__':
         dest_path = dest_dir / file_path.split("/")[-1]
         print(f"transferring: {file_path} to {dest_path}")
         shutil.copy(file_path, dest_path)
+
+    # check if all the files are missing for results
+    for folder in os.listdir(out):
+        if "runs" in folder:
+            for res_file in RES_FILES:
+                if not os.path.exists(out / folder / res_file):
+                    print(f"{folder} is missing {res_file}")
+        elif "qpp" in folder:
+            for res_file in QPP_FILES:
+                pass
+       

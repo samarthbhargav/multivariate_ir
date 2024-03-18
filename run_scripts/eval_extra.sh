@@ -36,7 +36,6 @@ fi
 echo "EXTRA_ARGS=${EXTRA_ARGS}"
 
 TOP_K=1000
-BATCH_SIZE=512
 METRICS="ndcg_cut_10,map,recip_rank,recip_rank_cut_10,recall_1000"
 RESULTS_DIR=${MODEL_OUT}/runs
 
