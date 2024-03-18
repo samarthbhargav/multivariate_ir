@@ -47,5 +47,5 @@ if __name__ == '__main__':
     for dir_path, file_path in tqdm(files_to_transfer, desc="transferring files"):
         print(f"transferring [{dir_path}]: {file_path}")
         dest_path = out / file_path
-        print(dest_path)
+        print(out, dest_path)
         print()
