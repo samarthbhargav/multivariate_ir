@@ -9,7 +9,7 @@ def walk_through_files(path, fnames_to_include):
     for (dirpath, dirnames, filenames) in os.walk(path):
         for filename in filenames:
             full_path = os.path.join(dirpath, filename)
-            if any([filename.endswith(_) for _ in include_extensions]):
+            if any([filename == _ for _ in fnames_to_include]):
                 yield dirpath, full_path
             else:
                 print(f"skipping {full_path}")
