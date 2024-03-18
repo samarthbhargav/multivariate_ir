@@ -71,7 +71,7 @@ if __name__ == '__main__':
     files_to_transfer = list(walk_through_files(inp, fnames_to_include=QPP_FILES.union(RES_FILES)))
     for dir_path, file_path in tqdm(files_to_transfer, desc="transferring files"):
         path_pref_removed = file_path[len(os.path.abspath(args.input_dir)) + 1:]
-        dest_dir = out / "_".join(path_pref_removed[:-1].split("/"))
+        dest_dir = out / "_".join(path_pref_removed.split("/")[:-1])
         os.makedirs(os.path.dirname(dest_dir), exist_ok=True)
         dest_path = dest_dir / file_path.split("/")[-1]
         print(f"transferring: {file_path} to {dest_path}")
