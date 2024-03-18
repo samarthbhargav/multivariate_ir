@@ -34,7 +34,7 @@ if __name__ == '__main__':
 
     EXCL_FILES = {"eval_result.json", "trainer_state.csv", ""}
     EXCL_EXT = {".pkl", ".log", ".run", ".zip"}
-    EXCL_FOLDERS_PREFIX = {"checkpoint"}
+    EXCL_FOLDERS_PREFIX = {"checkpoint", "runs", "mean", "qpp", "original", "updated"}
     files_to_transfer = list(walk_through_files(inp, exclude_fnames=EXCL_FILES, exclude_extensions=EXCL_EXT,
                                                 exclude_folder_prefixes=EXCL_FOLDERS_PREFIX))
 
