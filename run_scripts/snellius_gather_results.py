@@ -39,5 +39,4 @@ if __name__ == '__main__':
             continue
 
         print(f"transferring: {file_path} to {dest_path}")
-        # os.makedirs(os.path.dirname(dest_path), exist_ok=True)
-        # shutil.copy(file_path, dest_path)
+        shutil.copy(file_path, dest_path)
