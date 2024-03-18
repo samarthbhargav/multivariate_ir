@@ -75,4 +75,4 @@ if __name__ == '__main__':
         os.makedirs(os.path.dirname(dest_dir), exist_ok=True)
         dest_path = dest_dir / file_path.split("/")[-1]
         print(f"transferring: {file_path} to {dest_path}")
-        # shutil.copy(file_path, dest_path)
+        shutil.copy(file_path, dest_path)
