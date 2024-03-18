@@ -86,4 +86,3 @@ if __name__ == '__main__':
         elif "qpp" in folder:
             for res_file in QPP_FILES:
                 pass
-       
