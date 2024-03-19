@@ -38,5 +38,6 @@ if __name__ == '__main__':
             print(f"file {dest_path} already exists!")
             continue
 
+        os.makedirs(os.path.dirname(dest_path), exist_ok=True)
         print(f"transferring: {file_path} to {dest_path}")
         shutil.copy(file_path, dest_path)
