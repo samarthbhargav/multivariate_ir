@@ -26,7 +26,7 @@ if __name__ == '__main__':
     inp = Path(args.input_dir)
     out = Path(args.output_dir)
 
-    INCLUDE_EXT = {".run", ".json"}
+    INCLUDE_EXT = {".run", ".json", ".txt"}
     DO_NOT_OVERWRITE = True
 
     files_to_transfer = list(walk_through_files(inp, include_extensions=INCLUDE_EXT))
