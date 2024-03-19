@@ -40,6 +40,7 @@ RES_FILES = {
 QPP_FILES = {
     "bier_cqadupstack-android-corpus.txt", "bier_cqadupstack-android_test.txt",
     "bier_cqadupstack-english-corpus.txt", "bier_cqadupstack-english_test.txt",
+    "bier_cqadupstack-android-mathematica.txt", "bier_cqadupstack-mathematica_test.txt",
     "bier_cqadupstack-gaming-corpus.txt", "bier_cqadupstack-gaming_test.txt",
     "bier_cqadupstack-gis-corpus.txt", "bier_cqadupstack-gis_test.txt", "bier_cqadupstack-physics-corpus.txt",
     "bier_cqadupstack-physics_test.txt", "bier_cqadupstack-programmers-corpus.txt",
@@ -85,4 +86,5 @@ if __name__ == '__main__':
                     print(f"{folder} is missing {res_file}")
         elif "qpp" in folder:
             for res_file in QPP_FILES:
-                pass
+                if not os.path.exists(out / folder / res_file):
+                    print(f"{folder} is missing {res_file}")
