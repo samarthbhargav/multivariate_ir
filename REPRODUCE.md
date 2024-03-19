@@ -37,7 +37,7 @@ None
 Execute the following command to obtain the trained model:
 
 ```
-sh run_scripts/tas_b_zeroshot.sh
+srun -p gpu --time=01:00:00 --mem=24G --gres=gpu:a6000:1 sh run_scripts/tas_b_zeroshot.sh
 ``` 
 
 
@@ -853,116 +853,7 @@ srun -p gpu --gres=gpu:1 --mem=120G -c12 --time=96:00:00 sh eval_slurm.sh \
 
 ```
 
-srun -p gpu --gres=gpu:1 --mem=24G --time=12:00:00 sh qpp_eval_model.sh \
-        /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_db/14 \
-        /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_db/14/qpp \
-        "--model_type mvrl_no_distill --add_var_token  --embed_formulation updated --var_activation softplus --var_activation_param_b 2.5" \
-        /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_db/14/qpp/qpp.log & 
-
-
-srun -p gpu --gres=gpu:1 --mem=24G --time=12:00:00 sh qpp_eval_model.sh \
-        /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_db_logvar/3 \
-        /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_db_logvar/3/qpp \
-        "--model_type mvrl_no_distill --add_var_token --var_activation logvar --embed_formulation updated" \
-        /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_db_logvar/3/qpp/qpp.log 
-
-srun -p gpu --gres=gpu:1 --mem=24G --time=12:00:00 sh qpp_eval_model.sh \
-        /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_tasb_2 \
-        /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_tasb_2/qpp \
-        "--model_type mvrl_no_distill --add_var_token  --embed_formulation original --var_activation softplus --var_activation_param_b 2.5" \
-        /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_tasb_2/qpp/qpp.log 
-
-srun -p gpu --gres=gpu:1 --mem=24G --time=12:00:00 sh qpp_eval_model.sh \
-        /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_tasb_logvar \
-        /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_tasb_logvar/qpp \
-        "--model_type mvrl_no_distill --add_var_token  --embed_formulation updated --var_activation logvar" \
-        /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_tasb_logvar/qpp/qpp.log 
-   
-
-srun -p gpu --gres=gpu:1 --mem=24G --time=12:00:00 sh qpp_eval_model.sh \
-        /projects/0/prjs0907/multivariate_ir_experiments/experiments/stoch_db \
-        /projects/0/prjs0907/multivariate_ir_experiments/experiments/stoch_db/qpp \
-        "--model_type stochastic" \
-        /projects/0/prjs0907/multivariate_ir_experiments/experiments/stoch_db/qpp/qpp.log
-
-
-srun -p gpu --gres=gpu:1 --mem=24G --time=12:00:00 sh qpp_eval_model.sh \
-        /projects/0/prjs0907/multivariate_ir_experiments/experiments/stoch_db_frozen \
-        /projects/0/prjs0907/multivariate_ir_experiments/experiments/stoch_db_frozen/qpp \
-        "--model_type stochastic" \
-        /projects/0/prjs0907/multivariate_ir_experiments/experiments/stoch_db_frozen/qpp/qpp.log
-
-
-srun -p gpu --gres=gpu:1 --mem=24G --time=12:00:00 sh qpp_eval_model.sh \
-        /projects/0/prjs0907/multivariate_ir_experiments/experiments/stoch_tasb_frozen \
-        /projects/0/prjs0907/multivariate_ir_experiments/experiments/stoch_tasb_frozen/qpp \
-        "--model_type stochastic" \
-        /projects/0/prjs0907/multivariate_ir_experiments/experiments/stoch_tasb_frozen/qpp/qpp.log
-
-
-srun -p gpu --gres=gpu:1 --mem=24G --time=12:00:00 sh qpp_eval_model.sh \
-        /projects/0/prjs0907/multivariate_ir_experiments/experiments/stoch_tasb \
-        /projects/0/prjs0907/multivariate_ir_experiments/experiments/stoch_tasb/qpp \
-        "--model_type stochastic" \
-        /projects/0/prjs0907/multivariate_ir_experiments/experiments/stoch_tasb/qpp/qpp.log 
-
-srun -p gpu --gres=gpu:1 --mem=24G --time=12:00:00 sh qpp_eval_model.sh \
-        /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl/ \
-        /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl/qpp \
-        "--model_type mvrl --add_var_token  --embed_formulation updated --var_activation softplus --var_activation_param_b 2.5" \
-        /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl/qpp/qpp.log
-
-# MVRL TASB Lovgar for diff checkpoints
-srun -p gpu --gres=gpu:1 --mem=24G --time=12:00:00 sh qpp_eval_model.sh \
-        /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_tasb_logvar/checkpoint-25000/ \
-        /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_tasb_logvar/qpp-25000 \
-        "--model_type mvrl_no_distill --add_var_token  --embed_formulation updated --var_activation logvar" \
-        /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_tasb_logvar/qpp-25000/qpp.log  &
-
-
-srun -p gpu --gres=gpu:1 --mem=24G --time=12:00:00 sh qpp_eval_model.sh \
-        /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_tasb_logvar/checkpoint-50000/ \
-        /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_tasb_logvar/qpp-50000 \
-        "--model_type mvrl_no_distill --add_var_token  --embed_formulation updated --var_activation logvar" \
-        /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_tasb_logvar/qpp-50000/qpp.log &
-
-srun -p gpu --gres=gpu:1 --mem=24G --time=12:00:00 sh qpp_eval_model.sh \
-        /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_tasb_logvar/checkpoint-75000/ \
-        /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_tasb_logvar/qpp-75000 \
-        "--model_type mvrl_no_distill --add_var_token  --embed_formulation updated --var_activation logvar" \
-        /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_tasb_logvar/qpp-75000/qpp.log &
-
-srun -p gpu --gres=gpu:1 --mem=24G --time=12:00:00 sh qpp_eval_model.sh \
-        /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_tasb_logvar/checkpoint-100000/ \
-        /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_tasb_logvar/qpp-100000 \
-        "--model_type mvrl_no_distill --add_var_token  --embed_formulation updated --var_activation logvar" \
-        /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_tasb_logvar/qpp-100000/qpp.log &
-
-srun -p gpu --gres=gpu:1 --mem=24G --time=12:00:00 sh qpp_eval_model.sh \
-        /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_tasb_logvar/checkpoint-125000/ \
-        /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_tasb_logvar/qpp-125000 \
-        "--model_type mvrl_no_distill --add_var_token  --embed_formulation updated --var_activation logvar" \
-        /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_tasb_logvar/qpp-125000/qpp.log &
-
-srun -p gpu --gres=gpu:1 --mem=24G --time=12:00:00 sh qpp_eval_model.sh \
-        /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_tasb_logvar/checkpoint-150000/ \
-        /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_tasb_logvar/qpp-150000 \
-        "--model_type mvrl_no_distill --add_var_token  --embed_formulation updated --var_activation logvar" \
-        /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_tasb_logvar/qpp-150000/qpp.log &
-
-
-srun -p gpu --gres=gpu:a6000:1 --mem=24G --time=12:00:00 sh qpp_eval_model.sh \
-        /ivi/ilps/projects/multivariate_ir/experiments_gs/Snellius/MVRL_TASB_MiniLM_pseudolabels_CL_1_b_25_lr_5106_embed_during_train_scale/checkpoint-100000 \
-        /ivi/ilps/projects/multivariate_ir/experiments_gs/Snellius/MVRL_TASB_MiniLM_pseudolabels_CL_1_b_25_lr_5106_embed_during_train_scale/qpp \
-        "--model_type mvrl --add_var_token  --embed_formulation updated --clamp_mean scale --C 1.0 --var_activation_param_b 2.5 " \
-        /ivi/ilps/projects/multivariate_ir/experiments_gs/Snellius/MVRL_TASB_MiniLM_pseudolabels_CL_1_b_25_lr_5106_embed_during_train_scale/qpp/qpp.log
-
-
-srun -p gpu --gres=gpu:a6000:1 --mem=24G --time=12:00:00 sh qpp_eval_model.sh \
-        /ivi/ilps/projects/multivariate_ir/experiments_gs/Snellius/MVRL_TASB_MiniLM_pseudolabels_CL_1_b_25_lr_5106_embed_during_train_clamp/checkpoint-100000 \
-        /ivi/ilps/projects/multivariate_ir/experiments_gs/Snellius/MVRL_TASB_MiniLM_pseudolabels_CL_1_b_25_lr_5106_embed_during_train_clamp/qpp \
-        "--model_type mvrl --add_var_token  --embed_formulation updated --clamp_mean clamp --C 1.0 --var_activation_param_b 2.5 " \
-        /ivi/ilps/projects/multivariate_ir/experiments_gs/Snellius/MVRL_TASB_MiniLM_pseudolabels_CL_1_b_25_lr_5106_embed_during_train_clamp/qpp/qpp.log 
+srun -p gpu --gres=gpu:1 --mem=24G --time=12:00:00 qpp_eval_all.sh 
 
 ```
 

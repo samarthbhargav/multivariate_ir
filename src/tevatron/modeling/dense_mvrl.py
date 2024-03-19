@@ -64,7 +64,8 @@ class MVRLDenseModel(DenseModel):
             negatives_x_device=train_args.negatives_x_device,
             untie_encoder=model_args.untie_encoder,
             clamp_mean=mvrl_args.clamp_mean,
-            C=mvrl_args.C
+            C=mvrl_args.C,
+            projection_dim=mvrl_args.projection_dim
         )
         return model
 
@@ -117,6 +118,7 @@ class MVRLDenseModel(DenseModel):
                     var_activation=mvrl_args.var_activation,
                     var_activation_params={"beta": mvrl_args.var_activation_param_b},
                     clamp_mean=mvrl_args.clamp_mean,
+                    projection_dim=mvrl_args.projection_dim,
                     C=mvrl_args.C)
 
         mean_path = os.path.join(model_name_or_path, "projection_mean")
@@ -136,6 +138,7 @@ class MVRLDenseModel(DenseModel):
             untie_encoder: bool = False,
             negatives_x_device: bool = False,
             var_activation="softplus",
+            projection_dim=None,
             embed_during_train=False,
             embed_formulation="original",
             var_activation_params: Dict = None,
@@ -144,7 +147,11 @@ class MVRLDenseModel(DenseModel):
     ):
         super().__init__(lm_q=lm_q, lm_p=lm_p, pooler=pooler, untie_encoder=untie_encoder,
                          negatives_x_device=negatives_x_device)
-        self.projection_dim = int(output_dim / 2) - 1
+        if projection_dim is None:
+            self.projection_dim = int(output_dim / 2) - 1
+        else:
+            self.projection_dim = projection_dim
+
         self.projection_mean = nn.Linear(output_dim, self.projection_dim, bias=False)
 
         self.var_activation = var_activation
