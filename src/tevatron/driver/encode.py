@@ -15,7 +15,7 @@ from tevatron.arguments import TevatronTrainingArguments as TrainingArguments
 from tevatron.data import EncodeCollator, EncodeDataset
 from tevatron.datasets import HFCorpusDataset, HFQueryDataset
 from tevatron.modeling import DenseModel, EncoderOutput
-from tevatron.modeling.dense_mvrl import MVRLDenseModel
+from tevatron.modeling.dense_mvrl import MVRLDenseModel, get_faiss_embed
 from tevatron.modeling.dense_stochastic import StochasticDenseModel
 
 logger = logging.getLogger(__name__)
@@ -76,7 +76,7 @@ def main():
             config=config,
             cache_dir=model_args.cache_dir
         )
-    elif mvrl_args.model_type == "stochastic":
+    elif mvrl_args.model_type.startswith("stochastic"):
         model = StochasticDenseModel.load(
             model_name_or_path=model_args.model_name_or_path,
             model_args=model_args,
@@ -124,12 +124,22 @@ def main():
                     if mvrl_args.model_type == "stochastic":
                         # get the mean vector only
                         model_output.q_reps = StochasticDenseModel.get_mean_var(model_output.q_reps)[0]
+                    elif mvrl_args.model_type == "stochastic_mrl":
+                        # get mean and variance and encode using the MRL formulation
+                        model_output.q_reps = get_faiss_embed(StochasticDenseModel.get_mean_var(model_output.q_reps),
+                                                              is_query=True,
+                                                              is_logvar=False)
                     encoded.append(model_output.q_reps.cpu().detach().numpy())
                 else:
                     model_output: EncoderOutput = model(passage=batch, **encode_kwargs)
                     if mvrl_args.model_type == "stochastic":
                         # get the mean vector only
                         model_output.p_reps = StochasticDenseModel.get_mean_var(model_output.p_reps)[0]
+                    elif mvrl_args.model_type == "stochastic_mrl":
+                        # get mean and variance and encode using the MRL formulation
+                        model_output.p_reps = get_faiss_embed(StochasticDenseModel.get_mean_var(model_output.p_reps),
+                                                              is_query=False,
+                                                              is_logvar=False)
                     encoded.append(model_output.p_reps.cpu().detach().numpy())
     encoded = np.concatenate(encoded)
     logger.info(f"saving to {data_args.encoded_save_path}")

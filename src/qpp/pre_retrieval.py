@@ -160,6 +160,9 @@ def avg_max_sum_PMI(qtokens, index_reader, qtoken2did):
 
         assert len(pair) == pair_num
 
+        if pair_num == 0:
+            return [0.0, 0.0, 0.0]
+
         return [np.mean(pair), max(pair), sum(pair)]
 
 
@@ -183,12 +186,6 @@ if __name__ == "__main__":
     parser.add_argument("--precompute_out_path", type=str)
     args = parser.parse_args()
 
-    # dataset_class = args.query_path.split("/")[-3]
-    # dataset_name = args.query_path.split("/")[-1].split(".")[0]
-    # query_type = "-".join(args.query_path.split("/")[-1].split(".")[1].split("-")[1:])
-
-    # print(f"dataset_class:{dataset_class}, dataset_name:{dataset_name}, query_type:{query_type}")
-
     searcher = LuceneSearcher(args.index_path)
     index_reader = IndexReader(args.index_path)
 
@@ -207,54 +204,55 @@ if __name__ == "__main__":
     os.makedirs(args.output_path, exist_ok=True)
 
     if args.mode == "precomputation":
-        print(f"# unique query tokens {len(qtoken_set)}")
 
-        qtoken2var = {}
-        qtoken2std = {}
-        qtoken2did = {}
+        if os.path.exists(f'{args.output_path}/qtoken2var.json'):
+            print("precomputation already complete!")
+        else:
+            print(f"# unique query tokens {len(qtoken_set)}")
 
-        count = 0
-        for qtoken in tqdm(qtoken_set):
-            qtoken2var[qtoken], qtoken2std[qtoken] = VAR(qtoken, index_reader)
-            qtoken2did[qtoken] = t2did(qtoken, index_reader)
+            qtoken2var = {}
+            qtoken2std = {}
+            qtoken2did = {}
 
-            count += 1
-            if count % 50 == 0 or count == 1:
-                print(f"{count}/{len(qtoken_set)}")
+            count = 0
+            for qtoken in tqdm(qtoken_set):
+                qtoken2var[qtoken], qtoken2std[qtoken] = VAR(qtoken, index_reader)
+                qtoken2did[qtoken] = t2did(qtoken, index_reader)
 
-        f = open(f'{args.output_path}/qtoken2var.json', 'w')
-        f.write(json.dumps(qtoken2var))
-        f.close()
+                count += 1
+                if count % 50 == 0 or count == 1:
+                    print(f"{count}/{len(qtoken_set)}")
 
-        f = open(f'{args.output_path}/qtoken2std.json', 'w')
-        f.write(json.dumps(qtoken2std))
-        f.close()
+            f = open(f'{args.output_path}/qtoken2var.json', 'w')
+            f.write(json.dumps(qtoken2var))
+            f.close()
 
-        f = open(f'{args.output_path}/qtoken2did.json', 'w')
-        f.write(json.dumps(qtoken2did))
-        f.close()
-        print("Save successfully")
+            f = open(f'{args.output_path}/qtoken2std.json', 'w')
+            f.write(json.dumps(qtoken2std))
+            f.close()
+
+            f = open(f'{args.output_path}/qtoken2did.json', 'w')
+            f.write(json.dumps(qtoken2did))
+            f.close()
+            print("Save successfully")
 
     elif args.mode == "baselines":
 
         with open(args.qrels_path, 'r') as f_qrel:
             qrel = pytrec_eval.parse_qrel(f_qrel)
 
+        print("loading qtoken2var")
         qtoken2var = json.load(open(f'{args.output_path}/qtoken2var.json'))
+        print("loading qtoken2std")
         qtoken2std = json.load(open(f'{args.output_path}/qtoken2std.json'))
+        print("loading qtoken2did")
         qtoken2did = json.load(open(f'{args.output_path}/qtoken2did.json'))
 
         predicted_performance = {}
 
-        count = 0
-
-        for qid, qtext in query.items():
+        for qid, qtext in tqdm(query.items(), total=len(query)):
             if qid not in qrel:
                 continue
-
-            count += 1
-            if count == 1 or count % 10 == 0:
-                print(f"{count}/{len(query)}")
 
             predicted_performance[qid] = {}
             qtokens = index_reader.analyze(qtext)

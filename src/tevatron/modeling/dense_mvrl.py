@@ -17,6 +17,67 @@ from ..arguments import ModelArguments, MVRLTrainingArguments
 logger = logging.getLogger(__name__)
 
 
+def get_faiss_embed(mean_var, is_query, embed_formulation="updated", eps=1e-9, is_logvar=False):
+    means, var = mean_var
+    if is_logvar:
+        var = var.exp()
+    BZ = means.size(0)
+    D = means.size(1)
+
+    if embed_formulation == "original":
+        rep = torch.ones(BZ, 2 + 2 * D, device=means.device)
+
+        if is_query:
+            # 1, \sum var, mean^2, mean
+            # rep[:, 1] = (var + eps).prod(1)
+            rep[:, 1] = (var + eps).prod(1)
+            rep[:, 2:2 + D] = means ** 2
+            rep[:, 2 + D:] = means
+        else:
+            # doc prior, -1/\sum var, -1/var, (2*mu)/var
+            rep[:, 0] = -1 * (torch.log(var) + (means ** 2) / var).sum(1)
+            rep[:, 1] = (-1 / (var.prod(1) + eps))
+            rep[:, 2:2 + D] = (-1 / var)
+            rep[:, 2 + D:] = (2 * means) / var
+
+        assert not torch.isinf(rep).any() and not torch.isnan(rep).any(), "obtained infs in representation"
+        return rep
+    elif embed_formulation == "updated":
+        rep = torch.zeros(BZ, 1 + 3 * D, device=means.device)
+        if is_query:
+            rep[:, 0] = 1
+            rep[:, 1:D + 1] = var
+            rep[:, D + 1:2 * D + 1] = means ** 2
+            rep[:, 2 * D + 1:] = means
+        else:
+            rep[:, 0] = -1 * (torch.log(var) + means ** 2 / var).sum(1)
+            rep[:, 1:D + 1] = -1 / var
+            rep[:, D + 1:2 * D + 1] = (-1 / var)
+            rep[:, 2 * D + 1:] = (2 * means) / var
+
+        assert not torch.isinf(rep).any() and not torch.isnan(rep).any(), "obtained infs in representation"
+        return rep
+    elif embed_formulation == "full_kl":
+        rep = torch.zeros(BZ, 3 * D + 2, device=means.device)
+        if is_query:
+            rep[:, 0] = 1
+            rep[:, 1] = torch.log(var).sum(1)
+            rep[:, 2:D + 2] = var
+            rep[:, D + 2:2 * D + 2] = means ** 2
+            rep[:, 2 * D + 2:] = means
+        else:
+            rep[:, 0] = - (torch.log(var) + means ** 2 / var).sum(1)
+            rep[:, 1] = 1
+            rep[:, 2:D + 2] = - 1 / var
+            rep[:, D + 2:2 * D + 2] = - 1 / var
+            rep[:, 2 * D + 2:] = (2 * means) / var
+        return rep
+    elif embed_formulation == "mean":
+        return means
+    else:
+        raise NotImplementedError(embed_formulation)
+
+
 class MVRLDenseModel(DenseModel):
 
     @classmethod
@@ -188,64 +249,11 @@ class MVRLDenseModel(DenseModel):
             self.lm_q.resize_token_embeddings(num_tokens)
 
     def get_faiss_embed(self, mean_var, is_query, eps=1e-9, is_logvar=False):
-        means, var = mean_var
-        if is_logvar:
-            var = var.exp()
-        BZ = means.size(0)
-        D = means.size(1)
-
-        if self.embed_formulation == "original":
-            rep = torch.ones(BZ, 2 + 2 * D, device=means.device)
-
-            if is_query:
-                # 1, \sum var, mean^2, mean
-                # rep[:, 1] = (var + eps).prod(1)
-                rep[:, 1] = (var + eps).prod(1)
-                rep[:, 2:2 + D] = means ** 2
-                rep[:, 2 + D:] = means
-            else:
-                # doc prior, -1/\sum var, -1/var, (2*mu)/var
-                rep[:, 0] = -1 * (torch.log(var) + (means ** 2) / var).sum(1)
-                rep[:, 1] = (-1 / (var.prod(1) + eps))
-                rep[:, 2:2 + D] = (-1 / var)
-                rep[:, 2 + D:] = (2 * means) / var
-
-            assert not torch.isinf(rep).any() and not torch.isnan(rep).any(), "obtained infs in representation"
-            return rep
-        elif self.embed_formulation == "updated":
-            rep = torch.zeros(BZ, 1 + 3 * D, device=means.device)
-            if is_query:
-                rep[:, 0] = 1
-                rep[:, 1:D + 1] = var
-                rep[:, D + 1:2 * D + 1] = means ** 2
-                rep[:, 2 * D + 1:] = means
-            else:
-                rep[:, 0] = -1 * (torch.log(var) + means ** 2 / var).sum(1)
-                rep[:, 1:D + 1] = -1 / var
-                rep[:, D + 1:2 * D + 1] = (-1 / var)
-                rep[:, 2 * D + 1:] = (2 * means) / var
-
-            assert not torch.isinf(rep).any() and not torch.isnan(rep).any(), "obtained infs in representation"
-            return rep
-        elif self.embed_formulation == "full_kl":
-            rep = torch.zeros(BZ, 3 * D + 2, device=means.device)
-            if is_query:
-                rep[:, 0] = 1
-                rep[:, 1] = torch.log(var).sum(1)
-                rep[:, 2:D + 2] = var
-                rep[:, D + 2:2 * D + 2] = means ** 2
-                rep[:, 2 * D + 2:] = means
-            else:
-                rep[:, 0] = - (torch.log(var) + means ** 2 / var).sum(1)
-                rep[:, 1] = 1
-                rep[:, 2:D + 2] = - 1 / var
-                rep[:, D + 2:2 * D + 2] = - 1 / var
-                rep[:, 2 * D + 2:] = (2 * means) / var
-            return rep
-        elif self.embed_formulation == "mean":
-            return means
-        else:
-            raise NotImplementedError(self.embed_formulation)
+        return get_faiss_embed(mean_var,
+                               is_query=is_query,
+                               embed_formulation=self.embed_formulation,
+                               eps=eps,
+                               is_logvar=is_logvar)
 
     def forward(self, query: Dict[str, Tensor] = None, passage: Dict[str, Tensor] = None):
         q_reps = self.encode_query(query)
