@@ -12,6 +12,12 @@ then
   exit -1
 fi
 
+export MODEL_CACHE_DIR=/scratch-shared/sbhargav/.hf_model_cache
+export DATA_CACHE_DIR=/scratch-shared/sbhargav/.hf_data_cache
+export IR_DATASETS_HOME=/scratch-shared/sbhargav/.ird_cache/data
+export IR_DATASETS_TMP=/scratch-shared/sbhargav/.ird_cache/temp
+export HF_HOME=/scratch-shared/sbhargav/.hf_data_cache
+
 export MODEL_PATH_OR_NAME=${MODEL_PATH_OR_NAME}
 export MODEL_OUT=${MODEL_OUT}
 export EXTRA_ARGS=${EXTRA_ARGS}
