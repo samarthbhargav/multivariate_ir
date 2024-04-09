@@ -22,7 +22,8 @@ if __name__ == '__main__':
                 writer.write(json.dumps({"id": doc.doc_id, "contents": doc.text}) + "\n")
 
     for name, dl_set in [("dl19", "msmarco-passage/trec-dl-2019/judged"),
-                         ("dl20", "msmarco-passage/trec-dl-2020/judged")]:
+                         ("dl20", "msmarco-passage/trec-dl-2020/judged"),
+                         ("dev", "msmarco-passage/dev/small")]:
         dataset = ir_datasets.load(dl_set)
 
         res_dir = path / name

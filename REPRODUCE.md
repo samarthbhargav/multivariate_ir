@@ -37,7 +37,7 @@ None
 Execute the following command to obtain the trained model:
 
 ```
-sh run_scripts/tas_b_zeroshot.sh
+srun -p gpu --time=01:00:00 --mem=24G --gres=gpu:a6000:1 sh run_scripts/tas_b_zeroshot.sh
 ``` 
 
 
@@ -578,47 +578,85 @@ srun -p gpu --time=96:00:00 --mem=120G -c12 --gres=gpu:1 python -m tevatron.driv
 ```
 
 
+MVRL ND, TASB With corrected dimensionality to make eventual dim ~= 768 & fixed to 768
+```
+srun -p gpu --time=96:00:00 --mem=120G -c12 --gres=gpu:1 python -m tevatron.driver.train \
+--do_train \
+--do_eval  \
+--model_name_or_path sebastian-hofstaetter/distilbert-dot-tas_b-b256-msmarco \
+--dataset_name Tevatron/msmarco-passage \
+--data_cache_dir /projects/0/prjs0907/.hf_data_cache \
+--cache_dir /projects/0/prjs0907/.hf_model_cache \
+--train_dir /projects/0/prjs0907/data/msmarco/train \
+--val_dir /projects/0/prjs0907/data/msmarco/validation \
+--per_device_train_batch_size 14 \
+--per_device_eval_batch_size 105 \
+--train_n_passages 31 \
+--q_max_len 32 \
+--p_max_len 256 \
+--max_steps 150000 \
+--evaluation_strategy steps \
+--eval_steps 25000 \
+--save_steps 25000 \
+--metric_for_best_model mrr \
+--disable_distributed  \
+--warmup_ratio 0.1 \
+--fp16  --fp16_full_eval  \
+--exclude_title  \
+--model_type mvrl_no_distill \
+--add_var_token  \
+--embed_formulation updated \
+--var_activation softplus \
+--learning_rate 7e-06 \
+--var_activation_param_b 2.5 \
+--keep_data_in_memory \
+--projection_dim 255 \
+--output_dir /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_tasb_dim255/ >> mvrl_nd_tasb_dim255.log 2>&1 &
+
+```
+
+
 #### Evaluation
 
 ```
 
 srun -p gpu --gres=gpu:1 --mem=120G -c12 --time=48:00:00 sh eval_snellius.sh \
-            /scratch-shared/sbhargav/multivariate_ir_experiments/experiments/mvrl_nd_db/14 \
-            /scratch-shared/sbhargav/multivariate_ir_experiments/experiments/mvrl_nd_db/14/original \
+            /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_db/14 \
+            /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_db/14/original \
             "--model_type mvrl_no_distill --add_var_token  --embed_formulation original --var_activation softplus --var_activation_param_b 2.5" \
-            /scratch-shared/sbhargav/multivariate_ir_experiments/experiments/mvrl_nd_db/14/original/eval.log 
+            /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_db/14/original/eval.log 
 
 srun -p gpu --gres=gpu:1 --mem=120G -c12 --time=48:00:00 sh eval_snellius.sh \
-            /scratch-shared/sbhargav/multivariate_ir_experiments/experiments/mvrl_nd_db/14 \
-            /scratch-shared/sbhargav/multivariate_ir_experiments/experiments/mvrl_nd_db/14/updated \
+            /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_db/14 \
+            /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_db/14/updated \
             "--model_type mvrl_no_distill --add_var_token  --embed_formulation updated --var_activation softplus --var_activation_param_b 2.5" \
-            /scratch-shared/sbhargav/multivariate_ir_experiments/experiments/mvrl_nd_db/14/updated/eval.log
+            /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_db/14/updated/eval.log
 
 srun -p gpu --gres=gpu:1 --mem=24G -c12 --time=48:00:00 sh eval_snellius.sh \
-            /scratch-shared/sbhargav/multivariate_ir_experiments/experiments/mvrl_nd_db/14 \
-            /scratch-shared/sbhargav/multivariate_ir_experiments/experiments/mvrl_nd_db/14/mean \
+            /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_db/14 \
+            /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_db/14/mean \
             "--model_type mvrl_no_distill --add_var_token  --embed_formulation mean --var_activation softplus --var_activation_param_b 2.5" \
-            /scratch-shared/sbhargav/multivariate_ir_experiments/experiments/mvrl_nd_db/14/mean/eval.log 
+            /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_db/14/mean/eval.log 
 
  
 
 srun -p gpu --gres=gpu:1 --mem=120G -c12 --time=48:00:00 sh eval_snellius.sh \
-            /scratch-shared/sbhargav/multivariate_ir_experiments/experiments/mvrl_nd_tasb_2 \
-            /scratch-shared/sbhargav/multivariate_ir_experiments/experiments/mvrl_nd_tasb_2/original \
+            /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_tasb_2 \
+            /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_tasb_2/original \
             "--model_type mvrl_no_distill --add_var_token  --embed_formulation original --var_activation softplus --var_activation_param_b 2.5" \
-            /scratch-shared/sbhargav/multivariate_ir_experiments/experiments/mvrl_nd_tasb_2/original/eval.log   
+            /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_tasb_2/original/eval.log   
 
 srun -p gpu --gres=gpu:1 --mem=120G -c12 --time=48:00:00 sh eval_snellius.sh \
             /scratch-shared/sbhargav/multivariate_ir_experiments/experiments/mvrl_nd_tasb_2 \
             /scratch-shared/sbhargav/multivariate_ir_experiments/experiments/mvrl_nd_tasb_2/updated \
             "--model_type mvrl_no_distill --add_var_token  --embed_formulation updated --var_activation softplus --var_activation_param_b 2.5" \
-            /scratch-shared/sbhargav/multivariate_ir_experiments/experiments/mvrl_nd_tasb_2/updated/eval.log
+            /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_tasb_2/updated/eval.log
 
 srun -p gpu --gres=gpu:1 --mem=120G -c12 --time=48:00:00 sh eval_snellius.sh \
-            /scratch-shared/sbhargav/multivariate_ir_experiments/experiments/mvrl_nd_tasb_2 \
-            /scratch-shared/sbhargav/multivariate_ir_experiments/experiments/mvrl_nd_tasb_2/mean \
+            /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_tasb_2 \
+            /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_tasb_2/mean \
             "--model_type mvrl_no_distill --add_var_token  --embed_formulation mean --var_activation softplus --var_activation_param_b 2.5" \
-            /scratch-shared/sbhargav/multivariate_ir_experiments/experiments/mvrl_nd_tasb_2/mean/eval.log &
+            /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_tasb_2/mean/eval.log &
 
 srun -p gpu --gres=gpu:1 --mem=120G -c12 --time=48:00:00 sh eval_snellius.sh \
             /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_db_logvar/3 \
@@ -680,6 +718,70 @@ srun -p gpu --gres=gpu:1 --mem=120G -c12 --time=96:00:00 sh eval_snellius.sh \
 
 
 srun -p gpu --gres=gpu:1 --mem=120G -c12 --time=96:00:00 sh eval_snellius.sh \
+            /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_tasb_logvar_512 \
+            /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_tasb_logvar_512/updated \
+            "--model_type mvrl_no_distill --add_var_token  --embed_formulation updated --var_activation logvar" \
+            /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_tasb_logvar_512/updated/eval.log &
+
+
+srun -p gpu --gres=gpu:1 --mem=120G -c12 --time=96:00:00 sh eval_snellius.sh \
+            /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_tasb_logvar_512 \
+            /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_tasb_logvar_512/mean \
+            "--model_type mvrl_no_distill --add_var_token  --embed_formulation mean --var_activation logvar" \
+            /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_tasb_logvar_512/mean/eval.log &
+
+srun -p gpu --gres=gpu:1 --mem=120G -c12 --time=96:00:00 sh eval_snellius.sh \
+            /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_tasb_logvar_512 \
+            /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_tasb_logvar_512/original \
+            "--model_type mvrl_no_distill --add_var_token  --embed_formulation original --var_activation logvar" \
+            /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_tasb_logvar_512/original/eval.log &
+
+
+
+srun -p gpu --gres=gpu:1 --mem=120G -c12 --time=96:00:00 sh eval_snellius.sh \
+            /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_tasb_logvar_256 \
+            /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_tasb_logvar_256/updated \
+            "--model_type mvrl_no_distill --add_var_token  --embed_formulation updated --var_activation logvar" \
+            /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_tasb_logvar_256/updated/eval.log &
+
+
+srun -p gpu --gres=gpu:1 --mem=120G -c12 --time=96:00:00 sh eval_snellius.sh \
+            /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_tasb_logvar_256 \
+            /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_tasb_logvar_256/mean \
+            "--model_type mvrl_no_distill --add_var_token  --embed_formulation mean --var_activation logvar" \
+            /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_tasb_logvar_256/mean/eval.log &
+
+srun -p gpu --gres=gpu:1 --mem=120G -c12 --time=96:00:00 sh eval_snellius.sh \
+            /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_tasb_logvar_256 \
+            /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_tasb_logvar_256/original \
+            "--model_type mvrl_no_distill --add_var_token  --embed_formulation original --var_activation logvar" \
+            /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_tasb_logvar_256/original/eval.log &
+
+
+
+
+srun -p gpu --gres=gpu:1 --mem=120G -c12 --time=96:00:00 sh eval_snellius.sh \
+            /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_tasb_logvar_128 \
+            /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_tasb_logvar_128/updated \
+            "--model_type mvrl_no_distill --add_var_token  --embed_formulation updated --var_activation logvar" \
+            /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_tasb_logvar_128/updated/eval.log &
+
+
+srun -p gpu --gres=gpu:1 --mem=120G -c12 --time=96:00:00 sh eval_snellius.sh \
+            /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_tasb_logvar_128 \
+            /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_tasb_logvar_128/mean \
+            "--model_type mvrl_no_distill --add_var_token  --embed_formulation mean --var_activation logvar" \
+            /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_tasb_logvar_128/mean/eval.log &
+
+srun -p gpu --gres=gpu:1 --mem=120G -c12 --time=96:00:00 sh eval_snellius.sh \
+            /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_tasb_logvar_128 \
+            /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_tasb_logvar_128/original \
+            "--model_type mvrl_no_distill --add_var_token  --embed_formulation original --var_activation logvar" \
+            /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_tasb_logvar_128/original/eval.log &
+
+
+
+srun -p gpu --gres=gpu:1 --mem=120G -c12 --time=96:00:00 sh eval_snellius.sh \
             /projects/0/prjs0907/multivariate_ir_experiments/experiments/stoch_db \
             /projects/0/prjs0907/multivariate_ir_experiments/experiments/stoch_db \
             "--model_type stochastic " \
@@ -706,6 +808,35 @@ srun -p gpu --gres=gpu:1 --mem=120G -c12 --time=96:00:00 sh eval_snellius.sh \
             "--model_type stochastic " \
             /projects/0/prjs0907/multivariate_ir_experiments/experiments/stoch_tasb/eval.log &
 
+
+srun -p gpu --gres=gpu:1 --mem=240G -c12 --time=96:00:00 sh eval_snellius.sh \
+            /scratch-shared/sbhargav/multivariate_ir_experiments/experiments/stoch_db \
+            /scratch-shared/sbhargav/multivariate_ir_experiments/experiments/stoch_db/mrl \
+            "--model_type stochastic_mrl " \
+            /scratch-shared/sbhargav/multivariate_ir_experiments/experiments/stoch_db/mrl/eval.log &
+
+
+srun -p gpu --gres=gpu:1 --mem=240G -c12 --time=96:00:00 sh eval_snellius.sh \
+            /scratch-shared/sbhargav/multivariate_ir_experiments/experiments/stoch_db_frozen \
+            /scratch-shared/sbhargav/multivariate_ir_experiments/experiments/stoch_db_frozen/mrl \
+            "--model_type stochastic_mrl " \
+            /scratch-shared/sbhargav/multivariate_ir_experiments/experiments/stoch_db_frozen/mrl/eval.log &
+
+
+srun -p gpu --gres=gpu:1 --mem=240G -c12 --time=24:00:00 sh eval_snellius.sh \
+            /scratch-shared/sbhargav/multivariate_ir_experiments/experiments/stoch_tasb_frozen \
+            /scratch-shared/sbhargav/multivariate_ir_experiments/experiments/stoch_tasb_frozen/mrl \
+            "--model_type stochastic_mrl " \
+            /scratch-shared/sbhargav/multivariate_ir_experiments/experiments/stoch_tasb_frozen/mrl/eval.log &
+
+
+srun -p gpu --gres=gpu:1 --mem=240G -c12 --time=96:00:00 sh eval_snellius.sh \
+            /scratch-shared/sbhargav/multivariate_ir_experiments/experiments/stoch_tasb \
+            /scratch-shared/sbhargav/multivariate_ir_experiments/experiments/stoch_tasb/mrl \
+            "--model_type stochastic_mrl " \
+            /scratch-shared/sbhargav/multivariate_ir_experiments/experiments/stoch_tasb/mrl/eval.log &
+
+
 srun -p gpu --gres=gpu:1 --mem=120G -c12 --time=24:00:00 sh eval_snellius.sh \
             /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl \
             /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl/mean \
@@ -714,71 +845,108 @@ srun -p gpu --gres=gpu:1 --mem=120G -c12 --time=24:00:00 sh eval_snellius.sh \
 
 
 
+
+
+srun -p gpu --gres=gpu:1 --mem=120G -c12 --time=24:00:00 sh eval_snellius.sh \
+            /scratch-shared/sbhargav/multivariate_ir_experiments/experiments/mvrl_nd_tasb_dim255 \
+            /scratch-shared/sbhargav/multivariate_ir_experiments/experiments/mvrl_nd_tasb_dim255/updated \
+            "--model_type mvrl_no_distill --projection_dim 255 --add_var_token  --embed_formulation updated --var_activation softplus --var_activation_param_b 2.5 " \
+            /scratch-shared/sbhargav/multivariate_ir_experiments/experiments/mvrl_nd_tasb_dim255/updated/eval.log &
+
+
+srun -p gpu --gres=gpu:1 --mem=120G -c12 --time=24:00:00 sh eval_snellius.sh \
+            /scratch-shared/sbhargav/multivariate_ir_experiments/experiments/mvrl_nd_tasb_dim255 \
+            /scratch-shared/sbhargav/multivariate_ir_experiments/experiments/mvrl_nd_tasb_dim255/original \
+            "--model_type mvrl_no_distill --projection_dim 255 --add_var_token  --embed_formulation original --var_activation softplus --var_activation_param_b 2.5 " \
+            /scratch-shared/sbhargav/multivariate_ir_experiments/experiments/mvrl_nd_tasb_dim255/original/eval.log &
+
+srun -p gpu --gres=gpu:1 --mem=120G -c12 --time=24:00:00 sh eval_snellius.sh \
+            /scratch-shared/sbhargav/multivariate_ir_experiments/experiments/mvrl_nd_tasb_dim255 \
+            /scratch-shared/sbhargav/multivariate_ir_experiments/experiments/mvrl_nd_tasb_dim255/mean \
+            "--model_type mvrl_no_distill --projection_dim 255 --add_var_token  --embed_formulation mean --var_activation softplus --var_activation_param_b 2.5 " \
+            /scratch-shared/sbhargav/multivariate_ir_experiments/experiments/mvrl_nd_tasb_dim255/mean/eval.log &
+
+
+
 ```
+
+
+
+```
+srun -p gpu --gres=gpu:1 --mem=120G -c12 --time=96:00:00 sh eval_slurm.sh \
+            /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_tasb_logvar_512 \
+            /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_tasb_logvar_512/updated \
+            "--model_type mvrl_no_distill --add_var_token  --embed_formulation updated --var_activation logvar" \
+            /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_tasb_logvar_512/updated/eval.log &
+
+
+srun -p gpu --gres=gpu:1 --mem=120G -c12 --time=96:00:00 sh eval_slurm.sh \
+            /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_tasb_logvar_512 \
+            /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_tasb_logvar_512/mean \
+            "--model_type mvrl_no_distill --add_var_token  --embed_formulation mean --var_activation logvar" \
+            /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_tasb_logvar_512/mean/eval.log &
+
+srun -p gpu --gres=gpu:1 --mem=120G -c12 --time=96:00:00 sh eval_slurm.sh \
+            /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_tasb_logvar_512 \
+            /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_tasb_logvar_512/original \
+            "--model_type mvrl_no_distill --add_var_token  --embed_formulation original --var_activation logvar" \
+            /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_tasb_logvar_512/original/eval.log &
+
+
+
+srun -p gpu --gres=gpu:1 --mem=120G -c12 --time=96:00:00 sh eval_slurm.sh \
+            /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_tasb_logvar_256 \
+            /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_tasb_logvar_256/updated \
+            "--model_type mvrl_no_distill --add_var_token  --embed_formulation updated --var_activation logvar" \
+            /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_tasb_logvar_256/updated/eval.log &
+
+
+srun -p gpu --gres=gpu:1 --mem=120G -c12 --time=96:00:00 sh eval_slurm.sh \
+            /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_tasb_logvar_256 \
+            /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_tasb_logvar_256/mean \
+            "--model_type mvrl_no_distill --add_var_token  --embed_formulation mean --var_activation logvar" \
+            /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_tasb_logvar_256/mean/eval.log &
+
+srun -p gpu --gres=gpu:1 --mem=120G -c12 --time=96:00:00 sh eval_slurm.sh \
+            /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_tasb_logvar_256 \
+            /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_tasb_logvar_256/original \
+            "--model_type mvrl_no_distill --add_var_token  --embed_formulation original --var_activation logvar" \
+            /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_tasb_logvar_256/original/eval.log &
+
+
+
+
+srun -p gpu --gres=gpu:1 --mem=120G -c12 --time=96:00:00 sh eval_slurm.sh \
+            /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_tasb_logvar_128 \
+            /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_tasb_logvar_128/updated \
+            "--model_type mvrl_no_distill --add_var_token  --embed_formulation updated --var_activation logvar" \
+            /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_tasb_logvar_128/updated/eval.log &
+
+
+srun -p gpu --gres=gpu:1 --mem=120G -c12 --time=96:00:00 sh eval_slurm.sh \
+            /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_tasb_logvar_128 \
+            /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_tasb_logvar_128/mean \
+            "--model_type mvrl_no_distill --add_var_token  --embed_formulation mean --var_activation logvar" \
+            /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_tasb_logvar_128/mean/eval.log &
+
+srun -p gpu --gres=gpu:1 --mem=120G -c12 --time=96:00:00 sh eval_slurm.sh \
+            /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_tasb_logvar_128 \
+            /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_tasb_logvar_128/original \
+            "--model_type mvrl_no_distill --add_var_token  --embed_formulation original --var_activation logvar" \
+            /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_tasb_logvar_128/original/eval.log &
+
+
+
+
+```
+
 
 #### QPP Evaluation
 
 
 ```
 
-srun -p gpu --gres=gpu:1 --mem=24G --time=12:00:00 sh qpp_eval_model.sh \
-        /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_db/14 \
-        /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_db/14/qpp \
-        "--model_type mvrl_no_distill --add_var_token  --embed_formulation updated --var_activation softplus --var_activation_param_b 2.5" \
-        /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_db/14/qpp/qpp.log & 
-
-
-srun -p gpu --gres=gpu:1 --mem=24G --time=12:00:00 sh qpp_eval_model.sh \
-        /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_db_logvar/3 \
-        /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_db_logvar/3/qpp \
-        "--model_type mvrl_no_distill --add_var_token --var_activation logvar --embed_formulation updated" \
-        /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_db_logvar/3/qpp/qpp.log 
-
-srun -p gpu --gres=gpu:1 --mem=24G --time=12:00:00 sh qpp_eval_model.sh \
-        /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_tasb_2 \
-        /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_tasb_2/qpp \
-        "--model_type mvrl_no_distill --add_var_token  --embed_formulation original --var_activation softplus --var_activation_param_b 2.5" \
-        /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_tasb_2/qpp/qpp.log 
-
-srun -p gpu --gres=gpu:1 --mem=24G --time=12:00:00 sh qpp_eval_model.sh \
-        /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_tasb_logvar \
-        /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_tasb_logvar/qpp \
-        "--model_type mvrl_no_distill --add_var_token  --embed_formulation updated --var_activation logvar" \
-        /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_tasb_logvar/qpp/qpp.log 
-   
-
-srun -p gpu --gres=gpu:1 --mem=24G --time=12:00:00 sh qpp_eval_model.sh \
-        /projects/0/prjs0907/multivariate_ir_experiments/experiments/stoch_db \
-        /projects/0/prjs0907/multivariate_ir_experiments/experiments/stoch_db/qpp \
-        "--model_type stochastic" \
-        /projects/0/prjs0907/multivariate_ir_experiments/experiments/stoch_db/qpp/qpp.log
-
-
-srun -p gpu --gres=gpu:1 --mem=24G --time=12:00:00 sh qpp_eval_model.sh \
-        /projects/0/prjs0907/multivariate_ir_experiments/experiments/stoch_db_frozen \
-        /projects/0/prjs0907/multivariate_ir_experiments/experiments/stoch_db_frozen/qpp \
-        "--model_type stochastic" \
-        /projects/0/prjs0907/multivariate_ir_experiments/experiments/stoch_db_frozen/qpp/qpp.log
-
-
-srun -p gpu --gres=gpu:1 --mem=24G --time=12:00:00 sh qpp_eval_model.sh \
-        /projects/0/prjs0907/multivariate_ir_experiments/experiments/stoch_tasb_frozen \
-        /projects/0/prjs0907/multivariate_ir_experiments/experiments/stoch_tasb_frozen/qpp \
-        "--model_type stochastic" \
-        /projects/0/prjs0907/multivariate_ir_experiments/experiments/stoch_tasb_frozen/qpp/qpp.log
-
-
-srun -p gpu --gres=gpu:1 --mem=24G --time=12:00:00 sh qpp_eval_model.sh \
-        /projects/0/prjs0907/multivariate_ir_experiments/experiments/stoch_tasb \
-        /projects/0/prjs0907/multivariate_ir_experiments/experiments/stoch_tasb/qpp \
-        "--model_type stochastic" \
-        /projects/0/prjs0907/multivariate_ir_experiments/experiments/stoch_tasb/qpp/qpp.log 
-
-srun -p gpu --gres=gpu:1 --mem=24G --time=12:00:00 sh qpp_eval_model.sh \
-        /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl/ \
-        /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl/qpp \
-        "--model_type mvrl --add_var_token  --embed_formulation updated --var_activation softplus --var_activation_param_b 2.5" \
-        /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl/qpp/qpp.log
+srun -p gpu --gres=gpu:1 --mem=24G --time=12:00:00 qpp_eval_all.sh 
 
 ```
 
@@ -821,56 +989,68 @@ srun -p gpu --gres=gpu:1 --mem=24G --time=12:00:00 sh qpp_eval_model.sh \
             --index datasets/trec-dl/corpus_index/ \
             --topics datasets/trec-dl/dl20/queries.tsv \
             --output datasets/trec-dl/runs/dl20-bm25-1000.txt
+   
+   python -m pyserini.search.lucene \
+            --bm25 --hits 1000 --threads 16 --batch-size 64 \
+            --index datasets/trec-dl/corpus_index/ \
+            --topics datasets/trec-dl/dev/queries.tsv \
+            --output datasets/trec-dl/runs/dev-bm25-1000.txt
     
     
     mkdir -p datasets/actual_performances/
     
-    python -u evaluation_retrieval.py  \
+    python -u qpp.evaluation_retrieval  \
             --run datasets/trec-dl/runs/dl19-bm25-1000.txt \
             --qrel datasets/trec-dl/dl19/qrel.txt \
             --output_path datasets/actual_performances/dl19_bm25.json
     
-    python -u evaluation_retrieval.py  \
+    python -u qpp.evaluation_retrieval  \
             --run datasets/trec-dl/runs/dl20-bm25-1000.txt \
             --qrel datasets/trec-dl/dl20/qrel.txt \
-            --output_path datasets/actual_performances/dl20_bm25.json  
+            --output_path datasets/actual_performances/dl20_bm25.json
+   
+   python -m qpp.evaluation_retrieval  \
+            --run datasets/trec-dl/runs/dev-bm25-1000.txt \
+            --qrel datasets/trec-dl/dev/qrel.txt \
+            --output_path datasets/actual_performances/dev_bm25.json  
  
 
     ```
    
    Convert run files from DPR & TASB to the required format as well:
    ```
-        export QPP_METRIC="ndcg_cut_10"
-        export QPP_METRIC_NAME="ndcg@10" 
-        python -m qpp.convert_run_for_qpp --path runs/dpr/dl19_msmarco-passage.run \
-            --output datasets/actual_performances/dl19_dpr.json \
+    export QPP_METRIC="ndcg_cut_10"
+    export QPP_METRIC_NAME="ndcg@10" 
+    python -m qpp.convert_run_for_qpp --path runs/dpr/dl19_msmarco-passage.run \
+        --output datasets/actual_performances/dl19_dpr.json \
+        --metric ${QPP_METRIC} --metric_name ${QPP_METRIC_NAME}\
+        --ir_dataset_name msmarco-passage/trec-dl-2019/judged
+    
+    python -m qpp.convert_run_for_qpp --path runs/dpr/dl20_msmarco-passage.run \
+        --output datasets/actual_performances/dl20_dpr.json \
+        --metric ${QPP_METRIC} --metric_name ${QPP_METRIC_NAME}\
+        --ir_dataset_name msmarco-passage/trec-dl-2020/judged
+    
+    python -m qpp.convert_run_for_qpp --path runs/dpr/dev_msmarco-passage.run \
+        --output datasets/actual_performances/dev_dpr.json \
+        --metric ${QPP_METRIC} --metric_name ${QPP_METRIC_NAME}\
+        --ir_dataset_name msmarco-passage/dev/small
+    
+    python -m qpp.convert_run_for_qpp --path runs/tasb/dl19_msmarco-passage.run \
+            --output datasets/actual_performances/dl19_tasb.json \
             --metric ${QPP_METRIC} --metric_name ${QPP_METRIC_NAME}\
             --ir_dataset_name msmarco-passage/trec-dl-2019/judged
-   
-        python -m qpp.convert_run_for_qpp --path runs/dpr/dl20_msmarco-passage.run \
-            --output datasets/actual_performances/dl20_dpr.json \
+    
+    python -m qpp.convert_run_for_qpp --path runs/tasb/dl20_msmarco-passage.run \
+            --output datasets/actual_performances/dl20_tasb.json \
             --metric ${QPP_METRIC} --metric_name ${QPP_METRIC_NAME}\
             --ir_dataset_name msmarco-passage/trec-dl-2020/judged
    
-       python -m qpp.convert_run_for_qpp --path runs/tasb/dl19_msmarco-passage.run \
-                --output datasets/actual_performances/dl19_tasb.json \
-                --metric ${QPP_METRIC} --metric_name ${QPP_METRIC_NAME}\
-                --ir_dataset_name msmarco-passage/trec-dl-2019/judged
+    python -m qpp.convert_run_for_qpp --path runs/tasb/dev_msmarco-passage.run \
+            --output datasets/actual_performances/dev_tasb.json \
+            --metric ${QPP_METRIC} --metric_name ${QPP_METRIC_NAME}\
+            --ir_dataset_name msmarco-passage/dev/small
    
-       python -m qpp.convert_run_for_qpp --path runs/tasb/dl20_msmarco-passage.run \
-                --output datasets/actual_performances/dl20_tasb.json \
-                --metric ${QPP_METRIC} --metric_name ${QPP_METRIC_NAME}\
-                --ir_dataset_name msmarco-passage/trec-dl-2020/judged
-   
-       python -m qpp.convert_run_for_qpp --path runs/mvrl_nd_updated/dl19_msmarco-passage.run \
-                --output datasets/actual_performances/dl19_mvrl_nd.json \
-                --metric ${QPP_METRIC} --metric_name ${QPP_METRIC_NAME}\
-                --ir_dataset_name msmarco-passage/trec-dl-2019/judged
-   
-       python -m qpp.convert_run_for_qpp --path runs/mvrl_nd_updated/dl20_msmarco-passage.run \
-                --output datasets/actual_performances/dl20_mvrl_nd.json \
-                --metric ${QPP_METRIC} --metric_name ${QPP_METRIC_NAME}\
-                --ir_dataset_name msmarco-passage/trec-dl-2020/judged
     
  
  
@@ -908,18 +1088,76 @@ srun -p gpu --gres=gpu:1 --mem=24G --time=12:00:00 sh qpp_eval_model.sh \
                            --output qpp_output/dl20.csv
     ```
     
-
-
+    
+   
+           
+   python -m qpp.evaluate_one --actual bm25,datasets/actual_performances/dl19_bm25.json \
+           dpr,datasets/actual_performances/dl19_dpr.json \
+           tasb,datasets/actual_performances/dl19_tasb.json \
+           mvrl_nd,datasets/actual_performances/dl19_mvrl_nd.json \
+           --predicted /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_tasb_logvar/qpp-25000/msmarco-dl19.txt \
+           --metric ndcg@10 
+           
+   python -m qpp.evaluate_one --actual bm25,datasets/actual_performances/dl19_bm25.json \
+           dpr,datasets/actual_performances/dl19_dpr.json \
+           tasb,datasets/actual_performances/dl19_tasb.json \
+           mvrl_nd,datasets/actual_performances/dl19_mvrl_nd.json \
+           --predicted /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_tasb_logvar/qpp-50000/msmarco-dl19.txt \
+           --metric ndcg@10
+           
+           
+   python -m qpp.evaluate_one --actual bm25,datasets/actual_performances/dl19_bm25.json \
+           dpr,datasets/actual_performances/dl19_dpr.json \
+           tasb,datasets/actual_performances/dl19_tasb.json \
+           mvrl_nd,datasets/actual_performances/dl19_mvrl_nd.json \
+           --predicted /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_tasb_logvar/qpp-100000/msmarco-dl19.txt \
+           --metric ndcg@10
+   
+   python -m qpp.evaluate_one --actual bm25,datasets/actual_performances/dl19_bm25.json \
+           dpr,datasets/actual_performances/dl19_dpr.json \
+           tasb,datasets/actual_performances/dl19_tasb.json \
+           mvrl_nd,datasets/actual_performances/dl19_mvrl_nd.json \
+           --predicted /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_tasb_logvar/qpp-125000/msmarco-dl19.txt \
+           --metric ndcg@10
+           
+   python -m qpp.evaluate_one --actual bm25,datasets/actual_performances/dl19_bm25.json \
+           dpr,datasets/actual_performances/dl19_dpr.json \
+           tasb,datasets/actual_performances/dl19_tasb.json \
+           mvrl_nd,datasets/actual_performances/dl19_mvrl_nd.json \
+           --predicted /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_tasb_logvar/qpp-150000/msmarco-dl19.txt \
+           --metric ndcg@10
+                           
+   
+   python -m qpp.evaluate_one --actual bm25,datasets/actual_performances/dl20_bm25.json \
+           dpr,datasets/actual_performances/dl20_dpr.json \
+           tasb,datasets/actual_performances/dl20_tasb.json \
+           mvrl_nd,datasets/actual_performances/dl20_mvrl_nd.json \
+           --predicted /ivi/ilps/projects/multivariate_ir/experiments_gs/Snellius/MVRL_TASB_MiniLM_pseudolabels_CL_1_b_25_lr_5106_embed_during_train_scale/qpp/msmarco-dl20.txt \
+           --metric ndcg@10
+           
+   python -m qpp.evaluate_one --actual bm25,datasets/actual_performances/dl20_bm25.json \
+           dpr,datasets/actual_performances/dl20_dpr.json \
+           tasb,datasets/actual_performances/dl20_tasb.json \
+           mvrl_nd,datasets/actual_performances/dl20_mvrl_nd.json \
+           --predicted /ivi/ilps/projects/multivariate_ir/experiments_gs/Snellius/MVRL_TASB_MiniLM_pseudolabels_CL_1_b_25_lr_5106_embed_during_train_clamp/qpp/msmarco-dl20.txt \
+           --metric ndcg@10
 
 ### Get representations for visualizations
 
 ```
+srun -p gpu --gres=gpu:1 --mem=120G -c12 --time=48:00:00 sh get_representations.sh \
+            /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_db/14 \
+            /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_db/14/rep/ \
+            "--model_type mvrl_no_distill --add_var_token  --embed_formulation original --var_activation softplus --var_activation_param_b 2.5" \
+            /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_db/14/rep/rep.log
+
 
 srun -p gpu --gres=gpu:1 --mem=120G -c12 --time=48:00:00 sh get_representations.sh \
-            /scratch-shared/sbhargav/multivariate_ir_experiments/experiments/mvrl_nd_db/14 \
-            /scratch-shared/sbhargav/multivariate_ir_experiments/experiments/mvrl_nd_db/14/representations/ \
-            "--model_type mvrl_no_distill --add_var_token  --embed_formulation original --var_activation softplus --var_activation_param_b 2.5" \
-            /scratch-shared/sbhargav/multivariate_ir_experiments/experiments/mvrl_nd_db/14/original/eval.log
+            /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_tasb_logvar \
+            /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_tasb_logvar/rep/ \
+            "--model_type mvrl_no_distill --add_var_token  --embed_formulation updated --var_activation logvar" \
+            /projects/0/prjs0907/multivariate_ir_experiments/experiments/mvrl_nd_tasb_logvar/rep/rep.log
+
 
 ```                           
    
