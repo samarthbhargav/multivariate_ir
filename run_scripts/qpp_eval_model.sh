@@ -101,8 +101,7 @@ mkdir -p ${MODEL_OUT}
 #  done
 #done
 
-TEST_SETS=('dev')
-#TEST_SETS=('dl19' 'dl20')
+TEST_SETS=('dev' 'dl19' 'dl20')
 for split in "${TEST_SETS[@]}"
 do
   echo "eval ${split}"

@@ -138,6 +138,8 @@ def main():
                 reps_mean, reps_var = reps
                 if qpp_args.qpp_method == "norm":
                     predicted.append(torch.linalg.vector_norm(reps_var, dim=1).cpu().numpy())
+                if qpp_args.qpp_method == "neg_norm":
+                    predicted.append(-1 * torch.linalg.vector_norm(reps_var, dim=1).cpu().numpy())
                 elif qpp_args.qpp_method == "norm_recip":
                     predicted.append(1 / torch.linalg.vector_norm(reps_var, dim=1).cpu().numpy())
                 elif qpp_args.qpp_method == "det":
