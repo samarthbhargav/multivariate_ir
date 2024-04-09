@@ -1,7 +1,7 @@
 PRE_RETR_CMD="python -m qpp.pre_retrieval"
 
-datasets=('dl19' 'dl20')
-
+#datasets=('dl19' 'dl20')
+datasets=('dev')
 for dset in "${datasets[@]}"
 do
     ${PRE_RETR_CMD} \
