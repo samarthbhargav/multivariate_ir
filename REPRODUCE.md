@@ -267,17 +267,12 @@ python -m tevatron.driver.train \
 
 ## QPP 
 
-1. Preprocess: 
+- Preprocess: 
     
     ```
         python -m qpp.preprocess --path datasets/trec-dl/
     ```
-   
-2. Run QPP on the MVRL models:
-    ```
-    TODO
-    ```
-3. Build actual performance files:
+- Build actual performance files:
 
     BM25:
     ```
@@ -331,81 +326,8 @@ python -m tevatron.driver.train \
  
 
     ```
-   
-   Convert run files from DPR & TASB to the required format as well:
-   ```
-    export QPP_METRIC="ndcg_cut_10"
-    export QPP_METRIC_NAME="ndcg@10" 
-    python -m qpp.convert_run_for_qpp --path runs/dpr/dl19_msmarco-passage.run \
-        --output datasets/actual_performances/dl19_dpr.json \
-        --metric ${QPP_METRIC} --metric_name ${QPP_METRIC_NAME}\
-        --ir_dataset_name msmarco-passage/trec-dl-2019/judged
-    
-    python -m qpp.convert_run_for_qpp --path runs/dpr/dl20_msmarco-passage.run \
-        --output datasets/actual_performances/dl20_dpr.json \
-        --metric ${QPP_METRIC} --metric_name ${QPP_METRIC_NAME}\
-        --ir_dataset_name msmarco-passage/trec-dl-2020/judged
-    
-    python -m qpp.convert_run_for_qpp --path runs/dpr/dev_msmarco-passage.run \
-        --output datasets/actual_performances/dev_dpr.json \
-        --metric ${QPP_METRIC} --metric_name ${QPP_METRIC_NAME}\
-        --ir_dataset_name msmarco-passage/dev/small
-    
-    python -m qpp.convert_run_for_qpp --path runs/tasb/dl19_msmarco-passage.run \
-            --output datasets/actual_performances/dl19_tasb.json \
-            --metric ${QPP_METRIC} --metric_name ${QPP_METRIC_NAME}\
-            --ir_dataset_name msmarco-passage/trec-dl-2019/judged
-    
-    python -m qpp.convert_run_for_qpp --path runs/tasb/dl20_msmarco-passage.run \
-            --output datasets/actual_performances/dl20_tasb.json \
-            --metric ${QPP_METRIC} --metric_name ${QPP_METRIC_NAME}\
-            --ir_dataset_name msmarco-passage/trec-dl-2020/judged
-   
-    python -m qpp.convert_run_for_qpp --path runs/tasb/dev_msmarco-passage.run \
-            --output datasets/actual_performances/dev_tasb.json \
-            --metric ${QPP_METRIC} --metric_name ${QPP_METRIC_NAME}\
-            --ir_dataset_name msmarco-passage/dev/small
-   
-    
- 
- 
-   ```
-  
+    Obtain MRL-QPP
 
-   
-3. Run Baselines & Methods
-   
-   Run QPP pre-retrieval baselines :
-   ```
-        # run this from the repo root
-        sh run_scripts/qpp_baselines.sh
-   ```
-     
-4. Evaluate
-    ```
-   python -m qpp.evaluate --actual bm25,datasets/actual_performances/dl19_bm25.json \
-                           dpr,datasets/actual_performances/dl19_dpr.json \
-                           tasb,datasets/actual_performances/dl19_tasb.json \
-                           mvrl_nd,datasets/actual_performances/dl19_mvrl_nd.json \
-                           --predicted_dir qpp_output/pre-retrieval/dl19/ \
-                           --metric ndcg@10 \
-                           --output qpp_output/dl19.csv
-   
-   python -m qpp.evaluate --actual bm25,datasets/actual_performances/dl20_bm25.json \
-                           dpr,datasets/actual_performances/dl20_dpr.json \
-                           tasb,datasets/actual_performances/dl20_tasb.json \
-                           mvrl_nd,datasets/actual_performances/dl20_mvrl_nd.json \
-                           --predicted_dir qpp_output/pre-retrieval/dl20/ \
-                           --metric ndcg@10 \
-                           --output qpp_output/dl20.csv
-    ```
-    
- 
-
-
-### MRL-QPP Evaluation
-
-To evaluate the QPP for the MRL model, first generate the QPP results:
 ```
 sh qpp_eval_model.sh \
   /path/to/model \
@@ -414,8 +336,91 @@ sh qpp_eval_model.sh \
   /path/to/logfile
 ```
 
+   Convert run files from DPR, TASB & MRL to the required format as well:
+```
+    export QPP_METRIC="ndcg_cut_10"
+    export QPP_METRIC_NAME="ndcg@10" 
+    DPR_RUNS=/path/to/dpr/runs/folder
+    TASB_RUNS=/path/to/tasb/runs/folder
+    MRL_RUNS=/path/to/mrl/runs/folder
+    python -m qpp.convert_run_for_qpp --path $DPR_RUNS/dl19_msmarco-passage.run \
+        --output datasets/actual_performances/dl19_dpr.json \
+        --metric ${QPP_METRIC} --metric_name ${QPP_METRIC_NAME}\
+        --ir_dataset_name msmarco-passage/trec-dl-2019/judged
+    
+    python -m qpp.convert_run_for_qpp --path $DPR_RUNS/dl20_msmarco-passage.run \
+        --output datasets/actual_performances/dl20_dpr.json \
+        --metric ${QPP_METRIC} --metric_name ${QPP_METRIC_NAME}\
+        --ir_dataset_name msmarco-passage/trec-dl-2020/judged
+    
+    python -m qpp.convert_run_for_qpp --path $DPR_RUNS/dev_msmarco-passage.run \
+        --output datasets/actual_performances/dev_dpr.json \
+        --metric ${QPP_METRIC} --metric_name ${QPP_METRIC_NAME}\
+        --ir_dataset_name msmarco-passage/dev/small
+    
+    python -m qpp.convert_run_for_qpp --path $TASB_RUNS/dl19_msmarco-passage.run \
+            --output datasets/actual_performances/dl19_tasb.json \
+            --metric ${QPP_METRIC} --metric_name ${QPP_METRIC_NAME}\
+            --ir_dataset_name msmarco-passage/trec-dl-2019/judged
+    
+    python -m qpp.convert_run_for_qpp --path $TASB_RUNS/dl20_msmarco-passage.run \
+            --output datasets/actual_performances/dl20_tasb.json \
+            --metric ${QPP_METRIC} --metric_name ${QPP_METRIC_NAME}\
+            --ir_dataset_name msmarco-passage/trec-dl-2020/judged
+    
+    python -m qpp.convert_run_for_qpp --path $TASB_RUNS/dev_msmarco-passage.run \
+            --output datasets/actual_performances/dev_tasb.json \
+            --metric ${QPP_METRIC} --metric_name ${QPP_METRIC_NAME}\
+            --ir_dataset_name msmarco-passage/dev/small
+    
+    python -m qpp.convert_run_for_qpp --path $MRL_RUNS/dl19_msmarco-passage.run \
+            --output datasets/actual_performances/dl19_mvrl.json \
+            --metric ${QPP_METRIC} --metric_name ${QPP_METRIC_NAME}\
+            --ir_dataset_name msmarco-passage/trec-dl-2019/judged
+    
+    python -m qpp.convert_run_for_qpp --path $MRL_RUNS/dl20_msmarco-passage.run \
+            --output datasets/actual_performances/dl20_mvrl.json \
+            --metric ${QPP_METRIC} --metric_name ${QPP_METRIC_NAME}\
+            --ir_dataset_name msmarco-passage/trec-dl-2020/judged
+    
+    python -m qpp.convert_run_for_qpp --path $MRL_RUNS/dev_msmarco-passage.run \
+            --output datasets/actual_performances/dev_mvrl.json \
+            --metric ${QPP_METRIC} --metric_name ${QPP_METRIC_NAME}\
+            --ir_dataset_name msmarco-passage/dev/small
+
+```
+ 
+- Run Baselines & Methods
+   
+   Run QPP pre-retrieval baselines :
+   ```
+        # run this from the repo root
+        sh run_scripts/qpp_baselines.sh
+   ```
+     
+- Evaluate
+    ```
+   python -m qpp.evaluate --actual bm25,datasets/actual_performances/dl19_bm25.json \
+                           dpr,datasets/actual_performances/dl19_dpr.json \
+                           tasb,datasets/actual_performances/dl19_tasb.json \
+                           mvrl,datasets/actual_performances/dl19_mvrl.json \
+                           --predicted_dir qpp_output/pre-retrieval/dl19/ \
+                           --metric ndcg@10 \
+                           --output qpp_output/dl19.csv
+   
+   python -m qpp.evaluate --actual bm25,datasets/actual_performances/dl20_bm25.json \
+                           dpr,datasets/actual_performances/dl20_dpr.json \
+                           tasb,datasets/actual_performances/dl20_tasb.json \
+                           mvrl,datasets/actual_performances/dl20_mvrl.json \
+                           --predicted_dir qpp_output/pre-retrieval/dl20/ \
+                           --metric ndcg@10 \
+                           --output qpp_output/dl20.csv
+    ```
+    
+ 
+
+
 ## Gathering Results
 
-1. Run `python gather_results.py --input_dir $EXP_ROOT --output_dir notebooks/gathered_results`
-
-Run `notebooks/gather_results_final.ipynb`
+- Run `python gather_results.py --input_dir $EXP_ROOT --output_dir notebooks/gathered_results`
+- Run `notebooks/gather_results_final.ipynb`
