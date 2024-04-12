@@ -38,24 +38,8 @@ RES_FILES = {
 }
 
 QPP_FILES = {
-    "bier_cqadupstack-android-corpus.txt", "bier_cqadupstack-android_test.txt",
-    "bier_cqadupstack-english-corpus.txt", "bier_cqadupstack-english_test.txt",
-    "bier_cqadupstack-android-mathematica.txt", "bier_cqadupstack-mathematica_test.txt",
-    "bier_cqadupstack-gaming-corpus.txt", "bier_cqadupstack-gaming_test.txt",
-    "bier_cqadupstack-gis-corpus.txt", "bier_cqadupstack-gis_test.txt", "bier_cqadupstack-physics-corpus.txt",
-    "bier_cqadupstack-physics_test.txt", "bier_cqadupstack-programmers-corpus.txt",
-    "bier_cqadupstack-programmers_test.txt", "bier_cqadupstack-stats-corpus.txt",
-    "bier_cqadupstack-stats_test.txt", "bier_cqadupstack-tex-corpus.txt", "bier_cqadupstack-tex_test.txt",
-    "bier_cqadupstack-unix-corpus.txt", "bier_cqadupstack-unix_test.txt",
-    "bier_cqadupstack-webmasters-corpus.txt", "bier_cqadupstack-webmasters_test.txt",
-    "bier_cqadupstack-wordpress-corpus.txt", "bier_cqadupstack-wordpress_test.txt", "bier_fiqa-corpus.txt",
-    "bier_fiqa_test.txt", "bier_trec-covid-corpus.txt", "bier_trec-covid_test.txt", "corpus_scifact.txt",
-    "dev_scifact.txt", "dl19_msmarco-passage.txt", "dl20_msmarco-passage.txt", "msmarco-dev.txt",
-    "msmarco-dl19.txt", "msmarco-dl20.txt", "msmarco-med-corpus-0.1.txt", "msmarco-med-corpus-0.5.txt",
-    "msmarco-med-corpus-1.0.txt", "msmarco-med-corpus.txt", "msmarco-perturbed-0.1-train.txt",
-    "msmarco-perturbed-0.1-validation.txt", "msmarco-perturbed-0.5-train.txt",
-    "msmarco-perturbed-0.5-validation.txt", "msmarco-perturbed-1.0-train.txt",
-    "msmarco-perturbed-1.0-validation.txt", "msmarco-train.txt", "msmarco-validation.txt"
+    "dl19_msmarco-passage.txt", "dl20_msmarco-passage.txt", "msmarco-dev.txt",
+    "msmarco-dl19.txt", "msmarco-dl20.txt"
 }
 
 if __name__ == '__main__':
