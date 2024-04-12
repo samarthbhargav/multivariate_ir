@@ -259,11 +259,287 @@ python -m tevatron.driver.train \
 ```
 
 ### MRL (distillation)
+```
+# 1st CL iteration 
+python -m tevatron.driver.train_DRD \
+  --output_dir $EXP_ROOT/MVRL_TASB_MiniLM_pseudolabels_CL_1_b_25_lr_5106 \
+  --model_name_or_path sebastian-hofstaetter/distilbert-dot-tas_b-b256-msmarco \
+  --teacher_model_name_or_path cross-encoder/ms-marco-MiniLM-L-6-v2 \
+  --do_train \
+  --do_eval \
+  --exclude_title \
+  --model_type mvrl \
+  --var_activation_param_b 2.5 \
+  --add_var_token \
+  --embed_formulation updated \
+  --kd_type cldrd \
+  --pseudolabels \
+  --ann_neg_num 30 \
+  --group_1 5 \
+  --group_2 12 \
+  --group_3 13 \
+  --group_1_size 5 \
+  --group_2_size 45 \
+  --group_3_size 150 \
+  --train_n_passages 1 \
+  --per_device_train_batch_size 15 \
+  --dataset_name Tevatron/msmarco-passage \
+  --train_dir $DATA_DIR/train_pseudolabeling \
+  --val_dir $DATA_DIR/validation \
+  --fp16 \
+  --fp16_full_eval \
+  --learning_rate 5e-6 \
+  --q_max_len 32 \
+  --p_max_len 256 \
+  --warmup_ratio 0.1 \
+  --max_steps 100000 \
+  --logging_steps 150 \
+  --evaluation_strategy steps \
+  --eval_steps 25000 \
+  --save_steps 25000 \
+  --data_cache_dir $HF_CACHE \
+  --cache_dir $HF_CACHE \
+  --disable_distributed \
+  --overwrite_output_dir
 
+# 2nd CL iteration
+python -m tevatron.driver.train_DRD \
+  --output_dir $EXP_ROOT/MVRL_TASB_MiniLM_pseudolabels_CL_2_b_25_lr_1106 \
+  --model_name_or_path $EXP_ROOT/MVRL_TASB_MiniLM_pseudolabels_CL_1_b_25_lr_5106 \
+  --teacher_model_name_or_path cross-encoder/ms-marco-MiniLM-L-6-v2 \
+  --load_model_from_disk \
+  --do_train \
+  --do_eval \
+  --exclude_title \
+  --model_type mvrl \
+  --var_activation_param_b 2.5 \
+  --add_var_token \
+  --embed_formulation updated \
+  --kd_type cldrd \
+  --pseudolabels \
+  --ann_neg_num 30 \
+  --group_1 10 \
+  --group_2 10 \
+  --group_3 10 \
+  --group_1_size 10 \
+  --group_2_size 40 \
+  --group_3_size 150 \
+  --train_n_passages 1 \
+  --per_device_train_batch_size 15 \
+  --dataset_name Tevatron/msmarco-passage \
+  --train_dir $DATA_DIR/train_pseudolabeling \
+  --val_dir $DATA_DIR/validation \
+  --fp16 \
+  --fp16_full_eval \
+  --learning_rate 1e-6 \
+  --q_max_len 32 \
+  --p_max_len 256 \
+  --warmup_ratio 0.1 \
+  --max_steps 50000 \
+  --logging_steps 150 \
+  --evaluation_strategy steps \
+  --eval_steps 25000 \
+  --save_steps 25000 \
+  --data_cache_dir $HF_CACHE \
+  --cache_dir $HF_CACHE \
+  --disable_distributed \
+  --overwrite_output_dir
+
+
+# 3rd CL iteration 
+python -m tevatron.driver.train_DRD \
+  --output_dir $EXP_ROOT/MVRL_TASB_MiniLM_pseudolabels_CL_3_b_25_lr_1106 \
+  --model_name_or_path $EXP_ROOT/MVRL_TASB_MiniLM_pseudolabels_CL_2_b_25_lr_1106 \
+  --teacher_model_name_or_path cross-encoder/ms-marco-MiniLM-L-6-v2 \
+  --load_model_from_disk \
+  --do_train \
+  --do_eval \
+  --exclude_title \
+  --model_type mvrl \
+  --var_activation_param_b 2.5 \
+  --add_var_token \
+  --embed_formulation updated \
+  --kd_type cldrd \
+  --pseudolabels \
+  --ann_neg_num 30 \
+  --group_1 30 \
+  --group_2 0 \
+  --group_3 0 \
+  --group_1_size 30 \
+  --group_2_size 20 \
+  --group_3_size 150 \
+  --train_n_passages 1 \
+  --per_device_train_batch_size 15 \
+  --dataset_name Tevatron/msmarco-passage \
+  --train_dir $DATA_DIR/train_pseudolabeling \
+  --val_dir $DATA_DIR/validation \
+  --fp16 \
+  --fp16_full_eval \
+  --learning_rate 1e-6 \
+  --q_max_len 32 \
+  --p_max_len 256 \
+  --warmup_ratio 0.1 \
+  --max_steps 50000 \
+  --logging_steps 150 \
+  --evaluation_strategy steps \
+  --eval_steps 25000 \
+  --save_steps 25000 \
+  --data_cache_dir $HF_CACHE \
+  --cache_dir $HF_CACHE \
+  --disable_distributed \
+  --overwrite_output_dir
+
+
+# eval
+EXTRA_PARAMS="--model_type mvrl --add_var_token  --embed_formulation updated --var_activation softplus --var_activation_param_b 2.5"
+BEST_MODEL=$EXP_ROOT/MVRL_TASB_MiniLM_pseudolabels_CL_3_b_25_lr_1106
+sh run_scripts/eval.sh $BEST_MODEL \ 
+           $BEST_MODEL \
+           $EXTRA_PARAMS \
+           $BEST_MODEL/eval.log
+
+```
 
 
 ### CLDRD
+```
 
+# 1st CL iteration 
+python -m tevatron.driver.train_DRD \
+  --output_dir $EXP_ROOT/CLDRD_TASB_MiniLM_pseudolabels_CL_1_lr_7106 \
+  --model_name_or_path sebastian-hofstaetter/distilbert-dot-tas_b-b256-msmarco \
+  --teacher_model_name_or_path cross-encoder/ms-marco-MiniLM-L-6-v2 \
+  --do_train \
+  --do_eval \
+  --exclude_title \
+  --var_activation_param_b 2.5 \
+  --add_var_token \
+  --embed_formulation updated \
+  --kd_type cldrd \
+  --pseudolabels \
+  --ann_neg_num 30 \
+  --group_1 5 \
+  --group_2 12 \
+  --group_3 13 \
+  --group_1_size 5 \
+  --group_2_size 45 \
+  --group_3_size 150 \
+  --train_n_passages 1 \
+  --per_device_train_batch_size 15 \
+  --dataset_name Tevatron/msmarco-passage \
+  --train_dir $DATA_DIR/train_pseudolabeling \
+  --val_dir $DATA_DIR/validation \
+  --fp16 \
+  --fp16_full_eval \
+  --learning_rate 7e-6 \
+  --q_max_len 32 \
+  --p_max_len 256 \
+  --warmup_ratio 0.1 \
+  --max_steps 100000 \
+  --logging_steps 150 \
+  --evaluation_strategy steps \
+  --eval_steps 25000 \
+  --save_steps 25000 \
+  --data_cache_dir $HF_CACHE \
+  --cache_dir $HF_CACHE \
+  --disable_distributed \
+  --overwrite_output_dir
+
+# 2nd CL iteration
+python -m tevatron.driver.train_DRD \
+  --output_dir $EXP_ROOT/CLDRD_TASB_MiniLM_pseudolabels_CL_2_lr_3106 \
+  --model_name_or_path $EXP_ROOT/CLDRD_TASB_MiniLM_pseudolabels_CL_1_lr_7106 \
+  --teacher_model_name_or_path cross-encoder/ms-marco-MiniLM-L-6-v2 \
+  --load_model_from_disk \
+  --do_train \
+  --do_eval \
+  --exclude_title \
+  --var_activation_param_b 2.5 \
+  --add_var_token \
+  --embed_formulation updated \
+  --kd_type cldrd \
+  --pseudolabels \
+  --ann_neg_num 30 \
+  --group_1 10 \
+  --group_2 10 \
+  --group_3 10 \
+  --group_1_size 10 \
+  --group_2_size 40 \
+  --group_3_size 150 \
+  --train_n_passages 1 \
+  --per_device_train_batch_size 15 \
+  --dataset_name Tevatron/msmarco-passage \
+  --train_dir $DATA_DIR/train_pseudolabeling \
+  --val_dir $DATA_DIR/validation \
+  --fp16 \
+  --fp16_full_eval \
+  --learning_rate 3e-6 \
+  --q_max_len 32 \
+  --p_max_len 256 \
+  --warmup_ratio 0.1 \
+  --max_steps 50000 \
+  --logging_steps 150 \
+  --evaluation_strategy steps \
+  --eval_steps 25000 \
+  --save_steps 25000 \
+  --data_cache_dir $HF_CACHE \
+  --cache_dir $HF_CACHE \
+  --disable_distributed \
+  --overwrite_output_dir
+
+
+# 3rd CL iteration 
+python -m tevatron.driver.train_DRD \
+  --output_dir $EXP_ROOT/CLDRD_TASB_MiniLM_pseudolabels_CL_3_lr_3106 \
+  --model_name_or_path $EXP_ROOT/CLDRD_TASB_MiniLM_pseudolabels_CL_2_lr_3106 \
+  --teacher_model_name_or_path cross-encoder/ms-marco-MiniLM-L-6-v2 \
+  --load_model_from_disk \
+  --do_train \
+  --do_eval \
+  --exclude_title \
+  --var_activation_param_b 2.5 \
+  --add_var_token \
+  --embed_formulation updated \
+  --kd_type cldrd \
+  --pseudolabels \
+  --ann_neg_num 30 \
+  --group_1 30 \
+  --group_2 0 \
+  --group_3 0 \
+  --group_1_size 30 \
+  --group_2_size 20 \
+  --group_3_size 150 \
+  --train_n_passages 1 \
+  --per_device_train_batch_size 15 \
+  --dataset_name Tevatron/msmarco-passage \
+  --train_dir $DATA_DIR/train_pseudolabeling \
+  --val_dir $DATA_DIR/validation \
+  --fp16 \
+  --fp16_full_eval \
+  --learning_rate 3e-6 \
+  --q_max_len 32 \
+  --p_max_len 256 \
+  --warmup_ratio 0.1 \
+  --max_steps 50000 \
+  --logging_steps 150 \
+  --evaluation_strategy steps \
+  --eval_steps 25000 \
+  --save_steps 25000 \
+  --data_cache_dir $HF_CACHE \
+  --cache_dir $HF_CACHE \
+  --disable_distributed \
+  --overwrite_output_dir
+
+
+# eval
+EXTRA_PARAMS=""
+BEST_MODEL=$EXP_ROOT/CLDRD_TASB_MiniLM_pseudolabels_CL_3_lr_3106
+sh run_scripts/eval.sh $BEST_MODEL \ 
+           $BEST_MODEL \
+           $EXTRA_PARAMS \
+           $BEST_MODEL/eval.log
+
+```
 
 ## QPP 
 
