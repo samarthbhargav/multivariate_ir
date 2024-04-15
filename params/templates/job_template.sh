@@ -1,6 +1,6 @@
 #!/bin/sh
-#SBATCH -o /ivi/ilps/projects/multivariate_ir/logs/%A_%a.out
-#SBATCH -e /ivi/ilps/projects/multivariate_ir/logs/%A_%a.err
+#SBATCH -o %A_%a.out
+#SBATCH -e %A_%a.err
 #SBATCH -n1
 #SBATCH --partition={partition}
 #SBATCH -c{n_cores}

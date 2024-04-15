@@ -1052,7 +1052,22 @@ srun -p gpu --gres=gpu:1 --mem=24G --time=12:00:00 qpp_eval_all.sh
             --ir_dataset_name msmarco-passage/dev/small
    
     
- 
+    python -m qpp.convert_run_for_qpp --path runs/mvrl/dl19_msmarco-passage.run \
+            --output datasets/actual_performances/dl19_mvrl.json \
+            --metric ${QPP_METRIC} --metric_name ${QPP_METRIC_NAME}\
+            --ir_dataset_name msmarco-passage/trec-dl-2019/judged
+    
+    python -m qpp.convert_run_for_qpp --path runs/mvrl/dl20_msmarco-passage.run \
+            --output datasets/actual_performances/dl20_mvrl.json \
+            --metric ${QPP_METRIC} --metric_name ${QPP_METRIC_NAME}\
+            --ir_dataset_name msmarco-passage/trec-dl-2020/judged
+   
+    python -m qpp.convert_run_for_qpp --path runs/mvrl/dev_msmarco-passage.run \
+            --output datasets/actual_performances/dev_mvrl.json \
+            --metric ${QPP_METRIC} --metric_name ${QPP_METRIC_NAME}\
+            --ir_dataset_name msmarco-passage/dev/small
+   
+    
  
    ```
    

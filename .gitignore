@@ -22,3 +22,12 @@ qpp_output
 msmarco-small-perturbed-*
 msmarco-med-perturbed-*
 msmarco-perturbed-*
+
+GradCache
+notebooks/dl_clean.json
+notebooks/dl_clean.txt
+notebooks/dl_typo.json
+notebooks/dl_typo.txt
+notebooks/qpp_checkpoints.csv
+notebooks/gathered_results*
+notebooks/rep
