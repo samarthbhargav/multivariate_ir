@@ -412,9 +412,6 @@ python -m tevatron.driver.train_DRD \
   --do_train \
   --do_eval \
   --exclude_title \
-  --var_activation_param_b 2.5 \
-  --add_var_token \
-  --embed_formulation updated \
   --kd_type cldrd \
   --pseudolabels \
   --ann_neg_num 30 \
@@ -454,9 +451,6 @@ python -m tevatron.driver.train_DRD \
   --do_train \
   --do_eval \
   --exclude_title \
-  --var_activation_param_b 2.5 \
-  --add_var_token \
-  --embed_formulation updated \
   --kd_type cldrd \
   --pseudolabels \
   --ann_neg_num 30 \
@@ -497,9 +491,6 @@ python -m tevatron.driver.train_DRD \
   --do_train \
   --do_eval \
   --exclude_title \
-  --var_activation_param_b 2.5 \
-  --add_var_token \
-  --embed_formulation updated \
   --kd_type cldrd \
   --pseudolabels \
   --ann_neg_num 30 \
