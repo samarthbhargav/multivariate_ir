@@ -23,9 +23,11 @@ export MODEL_OUT=${MODEL_OUT}
 export EXTRA_ARGS=${EXTRA_ARGS}
 export LOG_FILE=${LOG_FILE}
 
+RESULTS_DIR=${MODEL_OUT}/runs
 DATA_PATH=/projects/0/prjs0907/data
 TOP_K=1000
 BATCH_SIZE=128
+
 
 echo "encoding TOT Corpus"
 # dataset name still needs to be set to ensure the right
