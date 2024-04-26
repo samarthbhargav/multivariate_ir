@@ -48,6 +48,7 @@ TEST_SETS=('reddit-test' 'reddit-validation' 'trec-dev' 'trec-train' 'reddit-tra
 for split in "${TEST_SETS[@]}"
 do
   echo "eval ${split}"
+
   # get embeds
   python -m tevatron.driver.encode \
   --output_dir=${MODEL_OUT} \
@@ -59,7 +60,7 @@ do
   --q_max_len 512 \
   --encode_is_qry \
   --dataset_name Tevatron/msmarco-passage \
-  --hf_disk_dataset ${DATA_PATH}/ToT/trec-corpus \
+  --hf_disk_dataset ${DATA_PATH}/ToT/${split} \
   --encoded_save_path ${MODEL_OUT}/tot-${split}.pkl \
   ${EXTRA_ARGS} >>${LOG_FILE} 2>&1
 
