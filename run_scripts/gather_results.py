@@ -35,6 +35,12 @@ RES_FILES = {
     "dev_scifact.json",
     "dl19.json",
     "dl20.json",
+    "tot-reddit-test.run",
+    "tot-reddit-train.run",
+    "tot-reddit-validation.run",
+    "tot-trec-dev.run",
+    "tot-trec-test.run",
+    "tot-trec-train.run"
 }
 
 QPP_FILES = {
