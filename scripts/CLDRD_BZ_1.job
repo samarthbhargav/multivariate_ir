@@ -22,8 +22,6 @@ echo "SLURM_JOB_ID"=$SLURM_JOB_ID
 echo "SLURM_JOB_NAME"=$SLURM_JOB_NAME
 echo $SLURM_SUBMIT_DIR
 
-echo $(head -$SLURM_ARRAY_TASK_ID $HPARAMS_FILE | tail -1)
-
 # Start the experiment.
 CUDA_VISIBLE_DEVICES=0 python -m tevatron.driver.train_DRD \
   --model_name_or_path sebastian-hofstaetter/distilbert-dot-tas_b-b256-msmarco \
