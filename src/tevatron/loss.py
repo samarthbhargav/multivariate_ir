@@ -43,7 +43,7 @@ class ListwiseContrastiveLoss:
             target = torch.arange(0, x.size(0) * target_per_qry, target_per_qry, device=x.device, dtype=torch.long)
         logits = torch.matmul(x, y.transpose(0, 1))
 
-        n_passages = int(y.shape[0]/x.shape[0])
+        n_passages = int(y.shape[0] / x.shape[0])
 
         target = target.to(x.device)
 
@@ -53,7 +53,8 @@ class ListwiseContrastiveLoss:
 
         target = target.view(logits.size(0), -1)
 
-        target= torch.scatter(teacher_mat, dim=-1, index=index.view(logits.size(0), -1),src=target.to(teacher_mat.dtype))
+        target = torch.scatter(teacher_mat, dim=-1, index=index.view(logits.size(0), -1),
+                               src=target.to(teacher_mat.dtype))
 
         # sort predicted scores
         logits_sorted, indices_pred = logits.sort(descending=True, dim=-1)
@@ -63,17 +64,22 @@ class ListwiseContrastiveLoss:
 
         # compute all possible pairs
 
-        excl_in_batch = true_sorted_by_preds!=-99
-        true_diffs = true_sorted_by_preds[excl_in_batch].view(x.shape[0],n_passages).unsqueeze(2) - true_sorted_by_preds.unsqueeze(1)
+        excl_in_batch = true_sorted_by_preds != -99
+        true_diffs = true_sorted_by_preds[excl_in_batch].view(x.shape[0], n_passages).unsqueeze(
+            2) - true_sorted_by_preds.unsqueeze(1)
         pairs_mask = true_diffs > 0
 
         # inverse rank of passage
-        inv_pos_idxs = 1. / torch.arange(1, logits.shape[1] + 1)#.to(target.device)
-        inv_pos_idxs = inv_pos_idxs.to(target.device) * torch.ones(true_sorted_by_preds.shape[0],true_sorted_by_preds.shape[1]).to(target.device)
+        inv_pos_idxs = 1. / torch.arange(1, logits.shape[1] + 1)  # .to(target.device)
+        inv_pos_idxs = inv_pos_idxs.to(target.device) * torch.ones(true_sorted_by_preds.shape[0],
+                                                                   true_sorted_by_preds.shape[1]).to(target.device)
 
-        weights = torch.abs(inv_pos_idxs[excl_in_batch].view(x.shape[0],n_passages).unsqueeze(2) - inv_pos_idxs.unsqueeze(1))  # [1, topk, topk]
+        weights = torch.abs(
+            inv_pos_idxs[excl_in_batch].view(x.shape[0], n_passages).unsqueeze(2) - inv_pos_idxs.unsqueeze(
+                1))  # [1, topk, topk]
 
-        scores_diffs = logits_sorted[excl_in_batch].view(x.shape[0],n_passages).unsqueeze(2) - logits_sorted.unsqueeze(1)
+        scores_diffs = logits_sorted[excl_in_batch].view(x.shape[0], n_passages).unsqueeze(2) - logits_sorted.unsqueeze(
+            1)
 
         # logsumexp trick to avoid inf
         topk = scores_diffs.size(2)
@@ -85,6 +91,7 @@ class ListwiseContrastiveLoss:
         losses = scores * weights  # [bz, topk, topk]
         return torch.mean(losses[pairs_mask])
 
+
 class ListwisePseudoContrastiveLoss:
     def __call__(self, x: Tensor, y: Tensor, target: Tensor = None, reduction: str = "mean"):
         if target is None:
@@ -94,10 +101,10 @@ class ListwisePseudoContrastiveLoss:
         logits = torch.matmul(x, y.transpose(0, 1))
 
         # labels w.r.t teacher
-        target = target.view(logits.size(0), int(logits.size(1)/logits.size(0)))
+        target = target.view(logits.size(0), int(logits.size(1) / logits.size(0)))
         target = target.to(logits.device)
 
-        index = torch.arange(target.size(0)*target.size(1), device=logits.device)
+        index = torch.arange(target.size(0) * target.size(1), device=logits.device)
         logits = torch.gather(logits, 1, index.view(logits.size(0), -1))
 
         # sort predicted scores
@@ -127,4 +134,3 @@ class ListwisePseudoContrastiveLoss:
         losses = scores * weights  # [bz, topk, topk]
         loss = torch.mean(losses[pairs_mask])
         return loss
-

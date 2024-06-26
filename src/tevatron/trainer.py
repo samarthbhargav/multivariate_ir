@@ -1,19 +1,20 @@
 import logging
 import os
+from collections import defaultdict
+from itertools import repeat
+from typing import Any, Dict, List, Optional, Tuple, Union
+
 import pytrec_eval
 import torch
 import torch.distributed as dist
 import torch.nn.functional as F
-from collections import defaultdict
-from tevatron.distillation.arguments import DistilTrainingArguments
 from torch import nn
 from torch.utils.data import DataLoader
 from transformers.trainer import Trainer
-from typing import Any, Dict, List, Optional, Tuple, Union
 
-from tevatron.loss import DistributedContrastiveLoss, SimpleContrastiveLoss, ListwiseContrastiveLoss, ListwisePseudoContrastiveLoss
+from tevatron.distillation.arguments import DistilTrainingArguments
+from tevatron.loss import ListwiseContrastiveLoss, ListwisePseudoContrastiveLoss
 from tevatron.trainer import split_dense_inputs, get_dense_rep
-from itertools import repeat
 
 logger = logging.getLogger(__name__)
 try:
@@ -22,6 +23,7 @@ try:
     _grad_cache_available = True
 except ModuleNotFoundError:
     _grad_cache_available = False
+
 
 class DistilTrainer(Trainer):
     def __init__(self, teacher_model, *args, **kwargs):
@@ -387,23 +389,23 @@ class ListwiseDistilPseudolabelsTrainer(DistilTrainer):
 
         student_scores = model(query=query, passage=passage).scores
 
-        #with torch.no_grad():
+        # with torch.no_grad():
         #    teacher_scores = self.teacher_model(pair=pair).scores
         #    if self.args.negatives_x_device:
         #         teacher_scores = self._dist_gather_tensor(teacher_scores)
 
         #    # CL-DRD approach: pseudolabels instead of raw teacher scores
         #    teacher_scores = teacher_scores.view(student_scores.size(0), -1)
-        
+
         # labels w.r.t teacher
         teacher_scores = torch.ones(student_scores.size(0), self.labels.size(0)) * self.labels
         teacher_scores = teacher_scores.to(student_scores.device)
 
-        index = torch.arange(teacher_scores.size(0)*teacher_scores.size(1), device=teacher_scores.device)
+        index = torch.arange(teacher_scores.size(0) * teacher_scores.size(1), device=teacher_scores.device)
         student_scores = torch.gather(student_scores, 1, index.view(student_scores.size(0), -1))
 
         if self.args.softmax_norm:
-            #teacher_scores = torch.softmax(teacher_scores / self.args.teacher_temp, dim=1)
+            # teacher_scores = torch.softmax(teacher_scores / self.args.teacher_temp, dim=1)
             student_scores = torch.softmax(student_scores / self.args.student_temp, dim=1)
 
         # sort predicted scores
@@ -448,7 +450,7 @@ class GCListwiseDistilTrainer(ListwiseDistilTrainer):
         if not _grad_cache_available:
             raise ValueError(
                 'Grad Cache package not available. You can obtain it from https://github.com/luyug/GradCache.')
-        super(GCListwiseDistilTrainer, self).__init__(teacher_model,*args, **kwargs)
+        super(GCListwiseDistilTrainer, self).__init__(teacher_model, *args, **kwargs)
 
         loss_fn_cls = ListwiseContrastiveLoss
         loss_fn = loss_fn_cls()
@@ -467,7 +469,7 @@ class GCListwiseDistilTrainer(ListwiseDistilTrainer):
         model.train()
         queries, passages, pairs = self._prepare_inputs(inputs)
         queries, passages = {'query': queries}, {'passage': passages}
-        _distributed = self.args.local_rank > 0 # I do not see why this was set to -1. local_rank is > 0 when multiple gpus
+        _distributed = self.args.local_rank > 0  # I do not see why this was set to -1. local_rank is > 0 when multiple gpus
         self.gc.models = [model, model]
 
         keys = list(pairs.keys())
@@ -479,7 +481,8 @@ class GCListwiseDistilTrainer(ListwiseDistilTrainer):
                 teacher_scores = self.teacher_model(pair=teacher_input).scores
                 target.extend(teacher_scores.tolist())
 
-        loss = self.gc(queries, passages, no_sync_except_last=_distributed, target=torch.squeeze(torch.FloatTensor(target)))
+        loss = self.gc(queries, passages, no_sync_except_last=_distributed,
+                       target=torch.squeeze(torch.FloatTensor(target)))
 
         return loss / self._dist_loss_scale_factor
 
@@ -514,7 +517,7 @@ class GCListwiseDistilPseudolabelsTrainer(ListwiseDistilPseudolabelsTrainer):
         model.train()
         queries, passages, pairs = self._prepare_inputs(inputs)
         queries, passages = {'query': queries}, {'passage': passages}
-        _distributed = self.args.local_rank > 0 # I do not see why this was set to -1. local_rank is > 0 when multiple gpus
+        _distributed = self.args.local_rank > 0  # I do not see why this was set to -1. local_rank is > 0 when multiple gpus
         self.gc.models = [model, model]
 
         keys = list(pairs.keys())
@@ -526,10 +529,10 @@ class GCListwiseDistilPseudolabelsTrainer(ListwiseDistilPseudolabelsTrainer):
                 teacher_scores = self.teacher_model(pair=teacher_input).scores
                 target.extend(teacher_scores.tolist())
 
-        loss = self.gc(queries, passages, no_sync_except_last=_distributed, target=torch.squeeze(torch.FloatTensor(target)))
+        loss = self.gc(queries, passages, no_sync_except_last=_distributed,
+                       target=torch.squeeze(torch.FloatTensor(target)))
 
         return loss / self._dist_loss_scale_factor
-
 
 # class ListwiseDistilPseudolabelsTrainer(DistilTrainer):
 #     """ CLDRD paper: pseudolabels.
