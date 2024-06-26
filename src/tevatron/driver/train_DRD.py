@@ -1,22 +1,19 @@
+import json
 import logging
 import os
-import sys
-import json
-
-import torch
 import pandas as pd
-
-from transformers import AutoConfig, AutoTokenizer, HfArgumentParser, set_seed, EarlyStoppingCallback
-
+import sys
+import torch
 from tevatron.arguments import DataArguments, MVRLTrainingArguments
 from tevatron.distillation.arguments import DistilModelArguments, DistilTrainingArguments
 from tevatron.distillation.data import DistilTrainCollator, DistilTrainDataset, HFDistilTrainDataset
 from tevatron.distillation.trainer import DistilTrainer, ListwiseDistilTrainer, ListwiseDistilLabelsTrainer, \
-    ListwiseDistilPseudolabelsTrainer
+    ListwiseDistilPseudolabelsTrainer, GCListwiseDistilTrainer, GCListwiseDistilPseudolabelsTrainer
 from tevatron.driver.train import compute_metrics
 from tevatron.modeling import DenseModel
 from tevatron.modeling.dense_mvrl import MVRLDenseModel
 from tevatron.reranker.modeling import RerankerModel
+from transformers import AutoConfig, AutoTokenizer, HfArgumentParser, set_seed, EarlyStoppingCallback
 
 logger = logging.getLogger(__name__)
 
@@ -132,10 +129,24 @@ def main():
             raise NotImplementedError(mvrl_args.model_type)
 
     if mvrl_args.model_type.startswith("mvrl"):
-        logger.info(f"adding VAR token! special tokens before: {tokenizer.all_special_tokens}")
-        tokenizer.add_special_tokens({'additional_special_tokens': ['[VAR]']}, replace_additional_special_tokens=False)
-        model.resize_token_space(len(tokenizer))
-        logger.info(f"special tokens after: {tokenizer.all_special_tokens}")
+        if training_args.load_model_from_disk:
+            assert tokenizer.get_vocab()["[VAR]"]
+            logger.info("[VAR] already in vocab")
+        else:
+            logger.info(f"adding VAR token! special tokens before: {tokenizer.all_special_tokens}")
+            tokenizer.add_special_tokens({'additional_special_tokens': ['[VAR]']},
+                                         replace_additional_special_tokens=False)
+            model.resize_token_space(len(tokenizer))
+            logger.info(f"special tokens after: {tokenizer.all_special_tokens}")
+
+            if mvrl_args.var_init_cls:
+                model.change_token_embedding(token_source=tokenizer.get_vocab()["[CLS]"],
+                                             token_target=tokenizer.get_vocab()["[VAR]"])
+
+            if mvrl_args.cls_init_var:
+                model.change_token_embedding(token_source=tokenizer.get_vocab()["[VAR]"],
+                                             token_target=tokenizer.get_vocab()["[CLS]"])
+
 
     teacher_config = AutoConfig.from_pretrained(
         model_args.teacher_config_name if model_args.teacher_config_name else model_args.teacher_model_name_or_path,
@@ -198,7 +209,9 @@ def main():
         callbacks = None
 
     if training_args.kd_type == "drd":
-        trainer = ListwiseDistilTrainer(
+        trainer_cls = GCListwiseDistilTrainer if training_args.grad_cache else ListwiseDistilTrainer
+
+        trainer = trainer_cls(
             teacher_model=teacher_model,
             model=model,
             args=training_args,
@@ -227,7 +240,9 @@ def main():
             ),
         )
     elif training_args.kd_type == "cldrd":
-        trainer = ListwiseDistilPseudolabelsTrainer(
+        trainer_cls = GCListwiseDistilPseudolabelsTrainer if training_args.grad_cache else ListwiseDistilPseudolabelsTrainer
+
+        trainer = trainer_cls(
             teacher_model=teacher_model,
             data_args=data_args,
             model=model,
@@ -260,7 +275,6 @@ def main():
         logger.info(f"saving tokenizer to {training_args.output_dir}")
         tokenizer.save_pretrained(training_args.output_dir)
 
-    print(trainer)
     train_dataset.trainer = trainer
 
     if val_dataset:
@@ -288,3 +302,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
