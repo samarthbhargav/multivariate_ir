@@ -1,13 +1,13 @@
 #!/bin/sh
-#SBATCH -o /ivi/ilps/projects/multivariate_ir/logs/%A_%a.out
-#SBATCH -e /ivi/ilps/projects/multivariate_ir/logs/%A_%a.err
+#SBATCH -o ./logs/%A_%a.out
+#SBATCH -e ./logs/%A_%a.err
 #SBATCH -n1
 #SBATCH --partition=gpu
-#SBATCH -c32
-#SBATCH --mem=32G
+#SBATCH -c12
+#SBATCH --mem=120G
 #SBATCH --time=99:00:00
 #SBATCH --array=1-4%4
-#SBATCH --gres=gpu:nvidia_rtx_a6000:1
+#SBATCH --gres=gpu:1
 
 # Set-up the environment. double curly brace necessary: https://stackoverflow.com/a/5466478
 source ${HOME}\/.bashrc
@@ -46,8 +46,8 @@ CUDA_VISIBLE_DEVICES=0 python -m tevatron.driver.train_DRD \
   --gc_q_chunk_size 15 \
   --gc_p_chunk_size 15 \
   --dataset_name Tevatron/msmarco-passage \
-  --train_dir /ivi/ilps/projects/multivariate_ir/experiments_gs/data/train_reranked_MiniLM_200_cmp_no_title \
-  --val_dir /ivi/ilps/projects/multivariate_ir/experiments_gs/data/validation \
+  --train_dir /scratch-shared/sbhargav/data/train_reranked_MiniLM_200_cmp_no_title \
+  --val_dir /scratch-shared/sbhargav/data/validation \
   --fp16 \
   --fp16_full_eval \
   --learning_rate 5e-6 \
@@ -56,7 +56,7 @@ CUDA_VISIBLE_DEVICES=0 python -m tevatron.driver.train_DRD \
   --warmup_ratio 0.1 \
   --logging_steps 15 \
   --evaluation_strategy steps \
-  --cache_dir /ivi/ilps/projects/multivariate_ir/experiments_gs/MVRL/cache/cache_models \
-  --data_cache_dir /ivi/ilps/projects/multivariate_ir/experiments_gs/data/train_reranked_MiniLM_200_cmp_no_title \
+  --cache_dir /scratch-shared/sbhargav/data/cache_models \
+  --data_cache_dir /scratch-shared/sbhargav/data/train_reranked_MiniLM_200_cmp_no_title \
   --disable_distributed $(head -$SLURM_ARRAY_TASK_ID $HPARAMS_FILE | tail -1)
 

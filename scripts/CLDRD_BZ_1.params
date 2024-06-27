@@ -1,4 +1,4 @@
---output_dir /ivi/ilps/projects/multivariate_ir/experiments/gradcache/cldrd_gc_32  --max_steps 47619 --eval_steps 11904 --save_steps 11904
---output_dir /ivi/ilps/projects/multivariate_ir/experiments/gradcache/cldrd_gc_64  --max_steps 23809 --eval_steps 5952  --save_steps 5952
---output_dir /ivi/ilps/projects/multivariate_ir/experiments/gradcache/cldrd_gc_128 --max_steps 11765 --eval_steps 2941  --save_steps 2941
---output_dir /ivi/ilps/projects/multivariate_ir/experiments/gradcache/cldrd_gc_256 --max_steps 5882  --eval_steps 1470  --save_steps 1470
+--output_dir /scratch-shared/sbhargav/multivariate_ir_experiments/experiments/gradcache/cldrd_gc_32  --max_steps 47619 --eval_steps 11904 --save_steps 11904
+--output_dir /scratch-shared/sbhargav/multivariate_ir_experiments/experiments/gradcache/cldrd_gc_64  --max_steps 23809 --eval_steps 5952  --save_steps 5952
+--output_dir /scratch-shared/sbhargav/multivariate_ir_experiments/experiments/gradcache/cldrd_gc_128 --max_steps 11765 --eval_steps 2941  --save_steps 2941
+--output_dir /scratch-shared/sbhargav/multivariate_ir_experiments/experiments/gradcache/cldrd_gc_256 --max_steps 5882  --eval_steps 1470  --save_steps 1470
