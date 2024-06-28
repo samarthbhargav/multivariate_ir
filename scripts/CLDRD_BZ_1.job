@@ -6,7 +6,7 @@
 #SBATCH -c12
 #SBATCH --mem=120G
 #SBATCH --time=99:00:00
-#SBATCH --array=1-4%4
+#SBATCH --array=1-5%5
 #SBATCH --gres=gpu:1
 
 # Set-up the environment. double curly brace necessary: https://stackoverflow.com/a/5466478

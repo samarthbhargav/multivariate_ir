@@ -1,4 +1,5 @@
---output_dir /scratch-shared/sbhargav/multivariate_ir_experiments/experiments/gradcache/cldrd_gc_32  --max_steps 47619 --eval_steps 11904 --save_steps 11904
---output_dir /scratch-shared/sbhargav/multivariate_ir_experiments/experiments/gradcache/cldrd_gc_64  --max_steps 23809 --eval_steps 5952  --save_steps 5952
---output_dir /scratch-shared/sbhargav/multivariate_ir_experiments/experiments/gradcache/cldrd_gc_128 --max_steps 11765 --eval_steps 2941  --save_steps 2941
---output_dir /scratch-shared/sbhargav/multivariate_ir_experiments/experiments/gradcache/cldrd_gc_256 --max_steps 5882  --eval_steps 1470  --save_steps 1470
+--output_dir /scratch-shared/sbhargav/multivariate_ir_experiments/experiments/gradcache/cldrd_gc_32  --per_device_train_batch_size 32 --max_steps 47619 --eval_steps 11904 --save_steps 11904
+--output_dir /scratch-shared/sbhargav/multivariate_ir_experiments/experiments/gradcache/cldrd_gc_64  --per_device_train_batch_size 64 --max_steps 23809 --eval_steps 5952  --save_steps 5952
+--output_dir /scratch-shared/sbhargav/multivariate_ir_experiments/experiments/gradcache/cldrd_gc_128 --per_device_train_batch_size 128 --max_steps 11765 --eval_steps 2941  --save_steps 2941
+--output_dir /scratch-shared/sbhargav/multivariate_ir_experiments/experiments/gradcache/cldrd_gc_256 --per_device_train_batch_size 256 --max_steps 5882  --eval_steps 1470  --save_steps 1470
+--output_dir /scratch-shared/sbhargav/multivariate_ir_experiments/experiments/gradcache/cldrd_gc_512 --per_device_train_batch_size 512 --max_steps 2941  --eval_steps 735  --save_steps 735
