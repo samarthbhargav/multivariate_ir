@@ -30,8 +30,6 @@ CUDA_VISIBLE_DEVICES=0 python -m tevatron.driver.train_DRD \
   --do_train \
   --do_eval \
   --exclude_title \
-  --add_var_token \
-  --embed_formulation updated \
   --kd_type cldrd \
   --pseudolabels \
   --ann_neg_num 30 \
@@ -58,5 +56,6 @@ CUDA_VISIBLE_DEVICES=0 python -m tevatron.driver.train_DRD \
   --evaluation_strategy steps \
   --cache_dir /scratch-shared/sbhargav/data/cache_models \
   --data_cache_dir /scratch-shared/sbhargav/data/train_reranked_MiniLM_200_cmp_no_title \
+  --keep_data_in_memory \
   --disable_distributed $(head -$SLURM_ARRAY_TASK_ID $HPARAMS_FILE | tail -1)
 
