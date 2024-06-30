@@ -48,7 +48,7 @@ CUDA_VISIBLE_DEVICES=0 python -m tevatron.driver.train_DRD \
   --val_dir /scratch-shared/sbhargav/data/validation \
   --fp16 \
   --fp16_full_eval \
-  --learning_rate 5e-6 \
+  --learning_rate 7e-6 \
   --q_max_len 32 \
   --p_max_len 256 \
   --warmup_ratio 0.1 \
