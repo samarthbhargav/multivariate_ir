@@ -195,7 +195,9 @@ class ListwiseDistilTrainer(DistilTrainer):
 
         if self.args.kd_in_batch_negs:
             # in-batch negatives are assigned 0 values
-            teacher_mat = torch.zeros(student_scores.shape, dtype=student_scores.dtype, device=teacher_scores.device)
+            # teacher_mat = torch.zeros(student_scores.shape, dtype=student_scores.dtype, device=teacher_scores.device)
+            teacher_mat = torch.ones(student_scores.shape, dtype=student_scores.dtype,
+                                     device=teacher_scores.device) * -999
 
             if self.args.softmax_norm:
                 teacher_scores = torch.softmax(
