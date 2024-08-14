@@ -151,6 +151,10 @@ class MVRLTrainingArguments:
     var_activation: str = field(default="softplus", metadata={"help": "either softplus or logvar"})
     var_activation_param_b: float = field(default=None,
                                           metadata={"help": "the param 'beta' for var_activation=softplus"})
+    var_init_cls: bool = field(default=False, metadata={
+        "help": "initialize var token with CLS embedding"})
+    cls_init_var: bool = field(default=False, metadata={
+        "help": "initialize mean token with random var embedding"})
     embed_during_train: bool = field(default=False, metadata={
         "help": "if set, uses the embedding similarity instead of KL in the loss"})
     projection_dim: int = field(default=None,

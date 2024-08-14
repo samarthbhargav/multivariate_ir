@@ -4,13 +4,13 @@ from collections import defaultdict
 from itertools import repeat
 from typing import Any, Dict, List, Optional, Tuple, Union
 
+import pytrec_eval
 import torch
 import torch.distributed as dist
 from torch import nn
 from torch.nn.parallel import DistributedDataParallel
 from torch.utils.data import DataLoader
 from transformers.trainer import Trainer
-import pytrec_eval
 
 from .loss import DistributedContrastiveLoss, SimpleContrastiveLoss
 

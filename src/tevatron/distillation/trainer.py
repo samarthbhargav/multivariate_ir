@@ -1,24 +1,23 @@
 import logging
 import os
+from collections import defaultdict
+from itertools import repeat
+from typing import Any, Dict, List, Optional, Tuple, Union
+
 import pytrec_eval
 import torch
 import torch.distributed as dist
 import torch.nn.functional as F
-from collections import defaultdict
-
-from torch.nn.parallel import DistributedDataParallel
-
-from tevatron.distillation.arguments import DistilTrainingArguments
 from torch import nn
 from torch.utils.data import DataLoader
 from transformers.trainer import Trainer
-from typing import Any, Dict, List, Optional, Tuple, Union
 
-from tevatron.loss import DistributedContrastiveLoss, SimpleContrastiveLoss
+from tevatron.distillation.arguments import DistilTrainingArguments
+from tevatron.loss import ListwiseContrastiveLoss, \
+    ListwisePseudoContrastiveLoss
 from tevatron.trainer import split_dense_inputs, get_dense_rep
 
 logger = logging.getLogger(__name__)
-
 try:
     from grad_cache import GradCache
 
@@ -196,7 +195,9 @@ class ListwiseDistilTrainer(DistilTrainer):
 
         if self.args.kd_in_batch_negs:
             # in-batch negatives are assigned 0 values
-            teacher_mat = torch.zeros(student_scores.shape, dtype=student_scores.dtype, device=teacher_scores.device)
+            # teacher_mat = torch.zeros(student_scores.shape, dtype=student_scores.dtype, device=teacher_scores.device)
+            teacher_mat = torch.ones(student_scores.shape, dtype=student_scores.dtype,
+                                     device=teacher_scores.device) * -999
 
             if self.args.softmax_norm:
                 teacher_scores = torch.softmax(
@@ -249,7 +250,7 @@ class ListwiseDistilTrainer(DistilTrainer):
 
         losses = scores * weights  # [bz, topk, topk]
 
-        loss = torch.mean(losses[pairs_mask])
+        loss = torch.mean(losses[pairs_mask]) * self._dist_loss_scale_factor
 
         return loss
 
@@ -356,7 +357,7 @@ class ListwiseDistilLabelsTrainer(DistilTrainer):
 
         losses = scores * weights  # [bz, topk, topk]
 
-        loss = torch.mean(losses[pairs_mask])
+        loss = torch.mean(losses[pairs_mask]) * self._dist_loss_scale_factor
 
         return loss
 
@@ -407,7 +408,7 @@ class ListwiseDistilPseudolabelsTrainer(DistilTrainer):
         student_scores = torch.gather(student_scores, 1, index.view(student_scores.size(0), -1))
 
         if self.args.softmax_norm:
-            teacher_scores = torch.softmax(teacher_scores / self.args.teacher_temp, dim=1)
+            # teacher_scores = torch.softmax(teacher_scores / self.args.teacher_temp, dim=1)
             student_scores = torch.softmax(student_scores / self.args.student_temp, dim=1)
 
         # sort predicted scores
@@ -436,27 +437,26 @@ class ListwiseDistilPseudolabelsTrainer(DistilTrainer):
 
         losses = scores * weights  # [bz, topk, topk]
 
-        loss = torch.mean(losses[pairs_mask])
+        loss = torch.mean(losses[pairs_mask]) * self._dist_loss_scale_factor
 
         return loss
 
 
-class GCListwiseDistilLabelsTrainer(ListwiseDistilLabelsTrainer):
+class GCListwiseDistilTrainer(ListwiseDistilTrainer):
     def __init__(self, teacher_model, *args, **kwargs):
-        logger.info("Initializing Gradient Cache Trainer")
+        logger.info('Initializing Gradient Cache Trainer')
+        try:
+            from grad_cache import GradCache
+            _grad_cache_available = True
+        except ModuleNotFoundError:
+            _grad_cache_available = False
         if not _grad_cache_available:
             raise ValueError(
-                "Grad Cache package not available. You can obtain it from https://github.com/luyug/GradCache."
-            )
-        super().__init__(teacher_model, *args, **kwargs)
+                'Grad Cache package not available. You can obtain it from https://github.com/luyug/GradCache.')
+        super(GCListwiseDistilTrainer, self).__init__(teacher_model, *args, **kwargs)
 
-        loss_fn_cls = DistributedContrastiveLoss if self.args.negatives_x_device else SimpleContrastiveLoss
+        loss_fn_cls = ListwiseContrastiveLoss
         loss_fn = loss_fn_cls()
-
-        logger.info("wrapping model in DDP")
-        self.model = DistributedDataParallel(self.model,
-                                             device_ids=[0],
-                                             output_device=0)
 
         self.gc = GradCache(
             models=[self.model, self.model],
@@ -465,23 +465,75 @@ class GCListwiseDistilLabelsTrainer(ListwiseDistilLabelsTrainer):
             split_input_fn=split_dense_inputs,
             get_rep_fn=get_dense_rep,
             fp16=self.args.fp16,
-            scaler=self.scaler if self.args.fp16 else None,
+            scaler=self.scaler if self.args.fp16 else None
         )
-
-    def _save(self, output_dir: Optional[str] = None):
-        try:
-            super()._save(output_dir)
-        except AttributeError:
-            self.model.module.save(output_dir)
 
     def training_step(self, model, inputs) -> torch.Tensor:
         model.train()
-        queries, passages, pair = self._prepare_inputs(inputs)
-        queries, passages = {"query": queries}, {"passage": passages}
+        queries, passages, pairs = self._prepare_inputs(inputs)
+        queries, passages = {'query': queries}, {'passage': passages}
+        _distributed = self.args.local_rank > 0  # I do not see why this was set to -1. local_rank is > 0 when multiple gpus
+        self.gc.models = [model, model]
 
-        _distributed = self.args.local_rank > -1
-        # self.gc.models = [model, model]
-        loss = self.gc(queries, passages, no_sync_except_last=_distributed)
+        keys = list(pairs.keys())
+        chunked_tensors = [pairs[k].split(100, dim=0) for k in keys]
+        teacher_inputs = [dict(zip(kk, tt)) for kk, tt in zip(repeat(keys), zip(*chunked_tensors))]
+        target = []
+        with torch.no_grad():
+            for teacher_input in teacher_inputs:
+                teacher_scores = self.teacher_model(pair=teacher_input).scores
+                target.extend(teacher_scores.tolist())
+
+        loss = self.gc(queries, passages, no_sync_except_last=_distributed,
+                       target=torch.squeeze(torch.FloatTensor(target)))
+
+        return loss / self._dist_loss_scale_factor
+
+
+class GCListwiseDistilPseudolabelsTrainer(ListwiseDistilPseudolabelsTrainer):
+    def __init__(self, teacher_model, data_args, *args, **kwargs):
+        logger.info('Initializing Gradient Cache Trainer')
+        try:
+            from grad_cache import GradCache
+            _grad_cache_available = True
+        except ModuleNotFoundError:
+            _grad_cache_available = False
+        if not _grad_cache_available:
+            raise ValueError(
+                'Grad Cache package not available. You can obtain it from https://github.com/luyug/GradCache.')
+        super(GCListwiseDistilPseudolabelsTrainer, self).__init__(teacher_model, data_args, *args, **kwargs)
+
+        loss_fn_cls = ListwisePseudoContrastiveLoss
+        loss_fn = loss_fn_cls()
+
+        self.gc = GradCache(
+            models=[self.model, self.model],
+            chunk_sizes=[self.args.gc_q_chunk_size, self.args.gc_p_chunk_size],
+            loss_fn=loss_fn,
+            split_input_fn=split_dense_inputs,
+            get_rep_fn=get_dense_rep,
+            fp16=self.args.fp16,
+            scaler=self.scaler if self.args.fp16 else None
+        )
+
+    def training_step(self, model, inputs) -> torch.Tensor:
+        model.train()
+        queries, passages, pairs = self._prepare_inputs(inputs)
+        queries, passages = {'query': queries}, {'passage': passages}
+        _distributed = self.args.local_rank > 0  # I do not see why this was set to -1. local_rank is > 0 when multiple gpus
+        self.gc.models = [model, model]
+
+        keys = list(pairs.keys())
+        chunked_tensors = [pairs[k].split(100, dim=0) for k in keys]
+        teacher_inputs = [dict(zip(kk, tt)) for kk, tt in zip(repeat(keys), zip(*chunked_tensors))]
+        target = []
+        with torch.no_grad():
+            for teacher_input in teacher_inputs:
+                teacher_scores = self.teacher_model(pair=teacher_input).scores
+                target.extend(teacher_scores.tolist())
+
+        loss = self.gc(queries, passages, no_sync_except_last=_distributed,
+                       target=torch.squeeze(torch.FloatTensor(target)))
 
         return loss / self._dist_loss_scale_factor
 
