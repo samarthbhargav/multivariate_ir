@@ -257,8 +257,84 @@ python -m tevatron.driver.train \
 --output_dir $EXP_ROOT/mvrl_255/
 
 ```
-
 ### MRL (distillation)
+```
+python -m tevatron.driver.train_DRD \
+  --output_dir $EXP_ROOT/MVRL_TASB_MiniLM_BM25_ANN \
+  --model_name_or_path sebastian-hofstaetter/distilbert-dot-tas_b-b256-msmarco \
+  --teacher_model_name_or_path cross-encoder/ms-marco-MiniLM-L-6-v2 \
+  --do_train \
+  --do_eval \
+  --exclude_title \
+  --model_type mvrl \
+  --var_activation_param_b 2.5 \
+  --add_var_token \
+  --embed_formulation updated \
+  --kd_type drd \
+  --kd_in_batch_negs \
+  --ann_neg_num 25 \
+  --train_n_passages 6 \
+  --per_device_train_batch_size 15 \
+  --dataset_name Tevatron/msmarco-passage \
+  --train_dir $DATA_DIR/train_bm25_ann \
+  --val_dir $DATA_DIR/validation \
+  --fp16 \
+  --fp16_full_eval \
+  --learning_rate 5e-6 \
+  --q_max_len 32 \
+  --p_max_len 256 \
+  --warmup_ratio 0.1 \
+  --max_steps 200000 \
+  --logging_steps 150 \
+  --evaluation_strategy steps \
+  --eval_steps 25000 \
+  --save_steps 25000 \
+  --cache_dir $HF_CACHE \
+  --data_cache_dir $HF_CACHE \
+  --disable_distributed \
+  --overwrite_output_dir
+```
+### MRL+GradCache (distillation)
+```
+CUDA_VISIBLE_DEVICES=0 python -m tevatron.driver.train_DRD \
+  --output_dir $EXP_ROOT/MVRL_TASB_MiniLM_BM25_ANN_gradcache \
+  --model_name_or_path sebastian-hofstaetter/distilbert-dot-tas_b-b256-msmarco \
+  --teacher_model_name_or_path cross-encoder/ms-marco-MiniLM-L-6-v2 \
+  --do_train \
+  --do_eval \
+  --exclude_title \
+  --model_type mvrl \
+  --var_activation_param_b 2.5 \
+  --add_var_token \
+  --embed_formulation updated \
+  --kd_type drd \
+  --kd_in_batch_negs \
+  --ann_neg_num 25 \
+  --train_n_passages 6 \
+  --grad_cache \
+  --gc_q_chunk_size 15 \
+  --gc_p_chunk_size 15 \
+  --per_device_train_batch_size 512 \
+  --dataset_name Tevatron/msmarco-passage \
+  --train_dir $DATA_DIR/train_bm25_ann \
+  --val_dir $DATA_DIR/validation \
+  --fp16 \
+  --fp16_full_eval \
+  --learning_rate 5e-6 \
+  --q_max_len 32 \
+  --p_max_len 256 \
+  --warmup_ratio 0.1 \
+  --max_steps 5880 \
+  --logging_steps 5 \
+  --evaluation_strategy steps \
+  --eval_steps 735 \
+  --save_steps 735 \
+  --cache_dir $HF_CACHE \
+  --data_cache_dir $HF_CACHE \
+  --disable_distributed \
+  --overwrite_output_dir
+ ``` 
+### MRL-CLDRD (distillation)
 ```
 # 1st CL iteration 
 python -m tevatron.driver.train_DRD \
