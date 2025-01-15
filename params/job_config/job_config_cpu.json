@@ -1,9 +1,0 @@
-{
-  "partition": "cpu",
-  "device": "cpu",
-  "n_cores": 2,
-  "mem": "16G",
-  "time": "05:00:00",
-  "n_parallel_jobs": 8,
-  "n_gpus": 0
-}

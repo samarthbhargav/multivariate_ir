@@ -7,13 +7,12 @@ import pandas as pd
 import torch
 from transformers import AutoConfig, AutoTokenizer, HfArgumentParser, set_seed, EvalPrediction, EarlyStoppingCallback
 
-from tevatron.arguments import DataArguments, ModelArguments, MVRLTrainingArguments, StochasticArguments
+from tevatron.arguments import DataArguments, ModelArguments, MVRLTrainingArguments
 from tevatron.arguments import TevatronTrainingArguments as TrainingArguments
 from tevatron.data import QPCollator, TrainDataset
 from tevatron.datasets import HFTrainDataset
 from tevatron.modeling import DenseModel
 from tevatron.modeling.dense_mvrl import MVRLDenseModel
-from tevatron.modeling.dense_stochastic import StochasticDenseModel
 from tevatron.trainer import GCTrainer
 from tevatron.trainer import TevatronTrainer as Trainer
 
@@ -37,7 +36,7 @@ def compute_metrics(pred: EvalPrediction):
 
 def main():
     parser = HfArgumentParser(
-        (ModelArguments, DataArguments, TrainingArguments, MVRLTrainingArguments, StochasticArguments))
+        (ModelArguments, DataArguments, TrainingArguments, MVRLTrainingArguments))
 
     if len(sys.argv) == 2 and sys.argv[1].endswith(".json"):
         model_args, data_args, training_args, mvrl_args, stoch_args = parser.parse_json_file(
@@ -48,7 +47,6 @@ def main():
         data_args: DataArguments
         training_args: TrainingArguments
         mvrl_args: MVRLTrainingArguments
-        stoch_args: StochasticArguments
 
     if (
             os.path.exists(training_args.output_dir)
@@ -112,16 +110,6 @@ def main():
             config=config,
             cache_dir=model_args.cache_dir,
         )
-    elif mvrl_args.model_type == "stochastic":
-        model = StochasticDenseModel.build(
-            model_args,
-            training_args,
-            stoch_args,
-            config=config,
-            cache_dir=model_args.cache_dir
-        )
-        if training_args.grad_cache:
-            assert mvrl_args.embed_formulation == "full_kl"
     else:
         raise NotImplementedError(mvrl_args.model_type)
 
