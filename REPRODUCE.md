@@ -1,13 +1,15 @@
-# Steps to Reproduce the Experiments in the Paper
+# Steps to reproduce the experiments in the Paper
 
 ## Setup 
 ```
 # After Cloning Repo and cd'ing into repo
 conda create --name multivariate_ir python=3.8
 conda activate multivariate_ir
-conda install faiss-gpu pytorch==1.12.1 torchvision==0.13.1 torchaudio==0.12.1 cudatoolkit=10.2 -c pytorch
+
+
+conda install faiss-gpu pytorch==1.12.1 torchvision==0.13.1 torchaudio==0.12.1 cudatoolkit=11.3 -c pytorch -c nvidia
 pip install -e .
-pip install accelerate -U && pip install pytrec_eval ir_datasets notebook datasets==2.4.0 transformers==4.29.2 Pillow==9.0.1
+pip install accelerate -U && pip install pytrec_eval ir_datasets notebook pyserini datasets==2.4.0 transformers==4.29.2 Pillow==9.0.1
 
 ## for installing GradCache
 git clone https://github.com/luyug/GradCache
@@ -30,7 +32,74 @@ export EXP_ROOT=/path/to/exp/root
 
 ## Setup: generating ANN negatives
 
-TODO GS
+```
+# do inference on the MS-MARCO train set
+MODEL_PATH_OR_NAME=sebastian-hofstaetter/distilbert-dot-tas_b-b256-msmarco
+MODEL_OUT=$EXP_ROOT/tasb_b_zeroshot/
+EXTRA_ARGS=""
+LOG_FILE=$EXP_ROOT/tasb_b_zeroshot/eval.log
+export MODEL_PATH_OR_NAME=${MODEL_PATH_OR_NAME}
+export MODEL_OUT=${MODEL_OUT}
+export EXTRA_ARGS=${EXTRA_ARGS}
+export LOG_FILE=${LOG_FILE}
+RESULTS_DIR=${MODEL_OUT}/runs
+
+mkdir -p ${RESULTS_DIR}
+mkdir -p ${MODEL_OUT}
+
+TOP_K=1000
+BATCH_SIZE=512
+python -m tevatron.driver.encode \
+  --output_dir=${MODEL_OUT} \
+  --model_name_or_path ${MODEL_PATH_OR_NAME} \
+  --fp16 \
+  --per_device_eval_batch_size ${BATCH_SIZE} \
+  --p_max_len 256 \
+  --exclude_title \
+  --q_max_len 32 \
+  --dataset_name Tevatron/msmarco-passage-corpus \
+  --encoded_save_path ${MODEL_OUT}/corpus_msmarco-passage.pkl \
+  ${EXTRA_ARGS} >>${LOG_FILE} 2>&1
+  
+python -m tevatron.driver.encode \
+  --output_dir=${MODEL_OUT} \
+  --model_name_or_path ${MODEL_PATH_OR_NAME} \
+  --fp16 \
+  --per_device_eval_batch_size ${BATCH_SIZE} \
+  --p_max_len 256 \
+  --exclude_title \
+  --q_max_len 32 \
+  --encode_is_qry \
+  --hf_disk_dataset ${DATA_DIR}/msmarco/train \
+  --dataset_name Tevatron/msmarco-passage/train \
+  --encoded_save_path ${MODEL_OUT}/train_msmarco-passage.pkl \
+  ${EXTRA_ARGS} >>${LOG_FILE} 2>&1
+
+
+  # obtain run
+  python -m tevatron.faiss_retriever \
+  --query_reps ${MODEL_OUT}/train_msmarco-passage.pkl \
+  --passage_reps ${MODEL_OUT}/corpus_msmarco-passage.pkl \
+  --depth ${TOP_K} \
+  --batch_size  ${BATCH_SIZE} \
+  --save_text \
+  --save_ranking_to ${RESULTS_DIR}/train_msmarco-passage.run >>${LOG_FILE} 2>&1
+
+
+cd scripts
+
+srun -p gpu --gres=gpu:1 --mem=120G -c12 --time=99:00:00 python -u sample_ann_negatives.py \
+  --rankings ${RESULTS_DIR}/train_msmarco-passage.run  \
+  --dataset ${DATA_DIR}/msmarco/train \
+  --hf_corpus Tevatron/msmarco-passage-corpus \
+  --docid_is_pos \
+  --k 50 \
+  --shards 10 \
+  --remove_qrel_positives \
+  --output ${DATA_DIR}/msmarco-tasb-negs 
+
+
+```
 
 ## Baseline models
 
@@ -56,7 +125,8 @@ export MODEL_OUT=${MODEL_OUT}
 export EXTRA_ARGS=${EXTRA_ARGS}
 export LOG_FILE=${LOG_FILE}
 
-/bin/bash run_scripts/eval_all.sh
+cd run_scripts
+/bin/bash eval_all.sh
 ``` 
 
 </details>
@@ -88,7 +158,7 @@ cd ../
 python best_model.py --experiment_path $EXP_ROOT/dpr_hs_db
 
 BEST_MODEL=/path/to/model
-sh run_scripts/eval.sh $BEST_MODEL \ 
+sh eval.sh $BEST_MODEL \ 
            $BEST_MODEL \
            "" \
            $BEST_MODEL/eval.log
@@ -237,7 +307,7 @@ python -m tevatron.driver.train_DRD \
 # eval
 EXTRA_PARAMS=""
 BEST_MODEL=$EXP_ROOT/CLDRD_TASB_MiniLM_pseudolabels_CL_3_lr_3106
-sh run_scripts/eval.sh $BEST_MODEL \ 
+sh eval.sh $BEST_MODEL \ 
            $BEST_MODEL \
            $EXTRA_PARAMS \
            $BEST_MODEL/eval.log
@@ -620,6 +690,9 @@ python -m qpp.preprocess --path datasets/trec-dl/
   <summary>BM25</summary>
 
 ```
+# install pyserini
+pip install numpy==1.24.4 spacy==3.7.6 pyserini
+
 python -m pyserini.index.lucene \
         --collection JsonCollection \
         --generator DefaultLuceneDocumentGenerator \
@@ -652,12 +725,12 @@ python -m pyserini.search.lucene \
 
 mkdir -p datasets/actual_performances/
 
-python -u qpp.evaluation_retrieval  \
+python -m qpp.evaluation_retrieval  \
         --run datasets/trec-dl/runs/dl19-bm25-1000.txt \
         --qrel datasets/trec-dl/dl19/qrel.txt \
         --output_path datasets/actual_performances/dl19_bm25.json
 
-python -u qpp.evaluation_retrieval  \
+python -m qpp.evaluation_retrieval  \
         --run datasets/trec-dl/runs/dl20-bm25-1000.txt \
         --qrel datasets/trec-dl/dl20/qrel.txt \
         --output_path datasets/actual_performances/dl20_bm25.json

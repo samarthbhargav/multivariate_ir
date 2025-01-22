@@ -1,9 +1,0 @@
-{
-  "partition": "gpu",
-  "device": "cuda",
-  "n_cores": 12,
-  "mem": "40G",
-  "time": "50:00:00",
-  "n_parallel_jobs": 12,
-  "n_gpus": 1
-}

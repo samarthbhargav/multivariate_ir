@@ -10,20 +10,19 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 from transformers import AutoConfig, AutoTokenizer, HfArgumentParser
 
-from tevatron.arguments import DataArguments, ModelArguments, MVRLTrainingArguments, StochasticArguments
+from tevatron.arguments import DataArguments, ModelArguments, MVRLTrainingArguments
 from tevatron.arguments import TevatronTrainingArguments as TrainingArguments
 from tevatron.data import EncodeCollator, EncodeDataset
 from tevatron.datasets import HFCorpusDataset, HFQueryDataset
 from tevatron.modeling import DenseModel, EncoderOutput
 from tevatron.modeling.dense_mvrl import MVRLDenseModel, get_faiss_embed
-from tevatron.modeling.dense_stochastic import StochasticDenseModel
 
 logger = logging.getLogger(__name__)
 
 
 def main():
     parser = HfArgumentParser(
-        (ModelArguments, DataArguments, TrainingArguments, MVRLTrainingArguments, StochasticArguments))
+        (ModelArguments, DataArguments, TrainingArguments, MVRLTrainingArguments))
     if len(sys.argv) == 2 and sys.argv[1].endswith(".json"):
         model_args, data_args, training_args, mvrl_args, stoch_args = parser.parse_json_file(
             json_file=os.path.abspath(sys.argv[1]))
@@ -33,7 +32,6 @@ def main():
         data_args: DataArguments
         training_args: TrainingArguments
         mvrl_args: MVRLTrainingArguments
-        stoch_args: StochasticArguments
 
     if training_args.local_rank > 0 or training_args.n_gpu > 1:
         raise NotImplementedError("Multi-GPU encoding is not supported.")
@@ -76,13 +74,6 @@ def main():
             config=config,
             cache_dir=model_args.cache_dir
         )
-    elif mvrl_args.model_type.startswith("stochastic"):
-        model = StochasticDenseModel.load(
-            model_name_or_path=model_args.model_name_or_path,
-            model_args=model_args,
-            stoch_args=stoch_args
-        )
-        encode_kwargs["n_iters"] = stoch_args.n_iters
     else:
         raise NotImplementedError(mvrl_args.model_type)
 
@@ -121,25 +112,9 @@ def main():
                     batch[k] = v.to(training_args.device)
                 if data_args.encode_is_qry:
                     model_output: EncoderOutput = model(query=batch, **encode_kwargs)
-                    if mvrl_args.model_type == "stochastic":
-                        # get the mean vector only
-                        model_output.q_reps = StochasticDenseModel.get_mean_var(model_output.q_reps)[0]
-                    elif mvrl_args.model_type == "stochastic_mrl":
-                        # get mean and variance and encode using the MRL formulation
-                        model_output.q_reps = get_faiss_embed(StochasticDenseModel.get_mean_var(model_output.q_reps),
-                                                              is_query=True,
-                                                              is_logvar=False)
                     encoded.append(model_output.q_reps.cpu().detach().numpy())
                 else:
                     model_output: EncoderOutput = model(passage=batch, **encode_kwargs)
-                    if mvrl_args.model_type == "stochastic":
-                        # get the mean vector only
-                        model_output.p_reps = StochasticDenseModel.get_mean_var(model_output.p_reps)[0]
-                    elif mvrl_args.model_type == "stochastic_mrl":
-                        # get mean and variance and encode using the MRL formulation
-                        model_output.p_reps = get_faiss_embed(StochasticDenseModel.get_mean_var(model_output.p_reps),
-                                                              is_query=False,
-                                                              is_logvar=False)
                     encoded.append(model_output.p_reps.cpu().detach().numpy())
     encoded = np.concatenate(encoded)
     logger.info(f"saving to {data_args.encoded_save_path}")

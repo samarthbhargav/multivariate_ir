@@ -2,6 +2,7 @@ import argparse
 import gc
 import glob
 import random
+from tqdm import tqdm
 
 from datasets import load_dataset, load_from_disk, concatenate_datasets
 
@@ -41,7 +42,7 @@ def main(args):
     # load rankings
     qpreds_dict = {}
     ranking_files = glob.glob(args.rankings)
-    for ranking_file in ranking_files:
+    for ranking_file in tqdm(ranking_files, desc="reading ranking files"):
         qpreds_data_tmp = open(ranking_file, 'rt').readlines()
 
         for line in qpreds_data_tmp:
@@ -61,7 +62,7 @@ def main(args):
 
     # sample from rankings
     num_shards = args.shards
-    for shard_idx in range(num_shards):
+    for shard_idx in tqdm(range(num_shards), desc="shards"):
         shard = dataset.shard(num_shards=num_shards, index=shard_idx, contiguous=True)
 
         ann_negatives = []

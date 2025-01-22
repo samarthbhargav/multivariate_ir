@@ -9,7 +9,7 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 from transformers import AutoConfig, AutoTokenizer, HfArgumentParser
 
-from tevatron.arguments import DataArguments, ModelArguments, MVRLTrainingArguments, StochasticArguments
+from tevatron.arguments import DataArguments, ModelArguments, MVRLTrainingArguments
 from tevatron.arguments import TevatronTrainingArguments as TrainingArguments
 from tevatron.data import EncodeCollator, EncodeDataset
 from tevatron.datasets import HFQueryDataset, HFCorpusDataset
@@ -17,8 +17,6 @@ from tevatron.datasets import HFQueryDataset, HFCorpusDataset
 from tevatron.modeling.dense_mvrl import MVRLDenseModel
 
 from dataclasses import dataclass, field
-
-from tevatron.modeling.dense_stochastic import StochasticDenseModel
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +28,7 @@ class RepArguments:
 
 def main():
     parser = HfArgumentParser(
-        (ModelArguments, DataArguments, TrainingArguments, MVRLTrainingArguments, StochasticArguments, RepArguments))
+        (ModelArguments, DataArguments, TrainingArguments, MVRLTrainingArguments, RepArguments))
     if len(sys.argv) == 2 and sys.argv[1].endswith(".json"):
         model_args, data_args, training_args, mvrl_args, stoch_args, rep_args = parser.parse_json_file(
             json_file=os.path.abspath(sys.argv[1]))
@@ -40,7 +38,6 @@ def main():
         data_args: DataArguments
         training_args: TrainingArguments
         mvrl_args: MVRLTrainingArguments
-        stoch_args: StochasticArguments
         rep_args: RepArguments
 
     if training_args.local_rank > 0 or training_args.n_gpu > 1:
@@ -75,12 +72,6 @@ def main():
             model_name_or_path=model_args.model_name_or_path,
             config=config,
             cache_dir=model_args.cache_dir
-        )
-    elif mvrl_args.model_type == "stochastic":
-        model = StochasticDenseModel.load(
-            model_name_or_path=model_args.model_name_or_path,
-            model_args=model_args,
-            stoch_args=stoch_args
         )
     else:
         raise ValueError(mvrl_args.model_type)
@@ -123,16 +114,11 @@ def main():
                     batch[k] = v.to(training_args.device)
 
                 enc_kwargs = {}
-                if mvrl_args.model_type == "stochastic":
-                    enc_kwargs["n_iters"] = stoch_args.n_iters
 
                 if data_args.encode_is_qry:
                     reps = model.encode_query(batch, **enc_kwargs)
                 else:
                     reps = model.encode_passage(batch, **enc_kwargs)
-
-                if mvrl_args.model_type == "stochastic":
-                    reps = StochasticDenseModel.get_mean_var(reps)
 
                 reps_mean, reps_var = reps
                 predicted_mean.append(reps_mean.cpu().detach().numpy())
