@@ -45,5 +45,14 @@ and running dense retrievers with deep language models.
 
 **Cite our paper**
 ```
-TODO
+@article{
+    sidiropoulos2025multivariate,
+    title={Multivariate Dense Retrieval: A Reproducibility Study under a Memory-limited Setup},
+    author={Georgios Sidiropoulos and Samarth Bhargav and Panagiotis Eustratiadis and Evangelos Kanoulas},
+    journal={Transactions on Machine Learning Research},
+    issn={2835-8856},
+    year={2025},
+    url={https://openreview.net/forum?id=wF3ZtSlOcT},
+    note={Reproducibility Certification}
+}
 ```

@@ -7,9 +7,9 @@ conda create --name multivariate_ir python=3.8
 conda activate multivariate_ir
 
 
-conda install faiss-gpu pytorch==1.12.1 torchvision==0.13.1 torchaudio==0.12.1 cudatoolkit=11.3 -c pytorch -c nvidia
+conda install faiss pytorch==1.12.1 torchvision==0.13.1 torchaudio==0.12.1 cudatoolkit=11.3 -c pytorch -c nvidia
 pip install -e .
-pip install accelerate -U && pip install pytrec_eval ir_datasets notebook pyserini datasets==2.4.0 transformers==4.29.2 Pillow==9.0.1
+pip install accelerate -U && pip install pytrec_eval ir_datasets notebook numpy==1.24.4 spacy==3.7.6 pyserini datasets==2.4.0 transformers==4.29.2 Pillow==9.0.1 
 
 ## for installing GradCache
 git clone https://github.com/luyug/GradCache
@@ -88,7 +88,7 @@ python -m tevatron.driver.encode \
 
 cd scripts
 
-srun -p gpu --gres=gpu:1 --mem=120G -c12 --time=99:00:00 python -u sample_ann_negatives.py \
+python -u sample_ann_negatives.py \
   --rankings ${RESULTS_DIR}/train_msmarco-passage.run  \
   --dataset ${DATA_DIR}/msmarco/train \
   --hf_corpus Tevatron/msmarco-passage-corpus \
@@ -167,6 +167,63 @@ sh eval.sh $BEST_MODEL \
 
 
 ### CLDRD
+
+
+<details>
+<summary>Generate psuedolabels</summary>
+
+```
+
+MODEL_OUT=$EXP_ROOT/tasb_b_zeroshot/
+RESULTS_DIR=${MODEL_OUT}/runs
+
+# convert TAS-B run into format required by Tevatron
+cd examples/reranker
+python prepare_rerank_file.py \
+    --query_data_name ${DATA_DIR}/msmarco/train \
+    --corpus Tevatron/msmarco-passage-corpus \
+    --retrieval ${RESULTS_DIR}/train_msmarco-passage.run \
+    --output_path ${RESULTS_DIR}/train_msmarco-passage.jsonl
+ 
+# re-rank with cross-encoder i.e., the teacher model
+srun -p gpu --gres=gpu:1 --mem=120G -c12 --time=99:00:00 python reranker_inference.py \
+  --output_dir=temp \
+  --model_name_or_path cross-encoder/ms-marco-MiniLM-L-6-v2 \
+  --tokenizer_name cross-encoder/ms-marco-MiniLM-L-6-v2 \
+  --fp16 \
+  --exclude_title \
+  --per_device_eval_batch_size 156 \
+  --q_max_len 32 \
+  --p_max_len 256 \
+  --dataset_name data_script.py \
+  --encode_in_path ${RESULTS_DIR}/train_msmarco-passage.jsonl \
+  --encoded_save_path ${RESULTS_DIR}/reranked_with_miniLM.txt 
+
+
+cd ../../scripts/
+ 
+srun -p gpu --gres=gpu:1 --mem=120G -c12 --time=99:00:00 python sample_ann_negatives.py \
+  --rankings ${RESULTS_DIR}/reranked_with_miniLM.txt  \
+  --dataset ${DATA_DIR}/msmarco/train \
+  --hf_corpus Tevatron/msmarco-passage-corpus \
+  --docid_is_pos \
+  --k 200 \
+  --shards 10000 \
+  --output ${DATA_DIR}/msmarco-train-MiniLM-reranked/
+ 
+srun -p gpu --gres=gpu:1 --mem=120G -c12 --time=99:00:00 python sample_ann_negatives.py \
+  --rankings /scratch-shared/sbhargav/mvrl_code_release_exp/tasb_b_zeroshot/runs/train_msmarco-passage-parts-rerankedMiniLM/'*.txt'  \
+  --dataset ${DATA_DIR}/msmarco/train-med \
+  --hf_corpus Tevatron/msmarco-passage-corpus \
+  --docid_is_pos \
+  --k 200 \
+  --shards 10000 \
+  --output ${DATA_DIR}/msmarco-train-MiniLM-reranked/
+
+
+
+```
+</details>
 
 <details>
   <summary>1st CL iteration</summary>
@@ -321,7 +378,42 @@ sh eval.sh $BEST_MODEL \
 
 ### MRL 
 
-TODO GS
+```
+srun -p gpu --mem=64G --gres=gpu:nvidia_rtx_a6000:1 --time=99:00:00 python -m tevatron.driver.train_DRD \
+  --output_dir ${EXP_ROOT}/MRL \
+  --model_name_or_path sebastian-hofstaetter/distilbert-dot-tas_b-b256-msmarco \
+  --teacher_model_name_or_path cross-encoder/ms-marco-MiniLM-L-6-v2 \
+  --do_train \
+  --do_eval \
+  --exclude_title \
+  --model_type mvrl \
+  --var_activation_param_b 2.5 \
+  --add_var_token \
+  --embed_formulation updated \
+  --kd_type drd \
+  --kd_in_batch_negs \
+  --ann_neg_num 25 \
+  --train_n_passages 6 \
+  --per_device_train_batch_size 15 \
+  --dataset_name Tevatron/msmarco-passage \
+  --train_dir ${DATA_DIR}/msmarco-tasb-negs/combined \
+  --val_dir ${DATA_DIR}/msmarco/validation \
+  --fp16 \
+  --fp16_full_eval \
+  --learning_rate 5e-6 \
+  --q_max_len 32 \
+  --p_max_len 256 \
+  --warmup_ratio 0.1 \
+  --max_steps 200000 \
+  --logging_steps 150 \
+  --evaluation_strategy steps \
+  --eval_steps 25000 \
+  --dataloader_num_workers 2 \
+  --save_steps 25000 \
+  --disable_distributed \
+  --overwrite_output_dir 
+
+```
 
 ### MRL -(Multivariate Rep) +(Vector Representation)
 
@@ -950,3 +1042,23 @@ CUDA_VISIBLE_DEVICES=0 python -m tevatron.driver.train_DRD \
   --disable_distributed \
   --overwrite_output_dir
  ``` 
+
+
+
+```
+
+srun -p gpu --gres=gpu:1 --mem=120G -c12 --time=99:00:00  python reranker_inference.py \
+  --output_dir=temp \
+  --model_name_or_path cross-encoder/ms-marco-MiniLM-L-6-v2 \
+  --tokenizer_name cross-encoder/ms-marco-MiniLM-L-6-v2 \
+  --fp16 \
+  --exclude_title \
+  --per_device_eval_batch_size 156 \
+  --q_max_len 32 \
+  --p_max_len 256 \
+  --dataset_name data_script.py \
+  --encode_in_path /scratch-shared/sbhargav/mvrl_code_release_exp/tasb_b_zeroshot/runs/train_msmarco-passage-split/16.txt  \
+  --encoded_save_path /scratch-shared/sbhargav/mvrl_code_release_exp/tasb_b_zeroshot/runs/train_msmarco-passage-parts-rerankedMiniLM/16.txt 
+
+
+```
