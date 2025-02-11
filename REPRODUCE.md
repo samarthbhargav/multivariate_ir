@@ -186,7 +186,7 @@ python prepare_rerank_file.py \
     --output_path ${RESULTS_DIR}/train_msmarco-passage.jsonl
  
 # re-rank with cross-encoder i.e., the teacher model
-srun -p gpu --gres=gpu:1 --mem=120G -c12 --time=99:00:00 python reranker_inference.py \
+ python reranker_inference.py \
   --output_dir=temp \
   --model_name_or_path cross-encoder/ms-marco-MiniLM-L-6-v2 \
   --tokenizer_name cross-encoder/ms-marco-MiniLM-L-6-v2 \
@@ -202,7 +202,7 @@ srun -p gpu --gres=gpu:1 --mem=120G -c12 --time=99:00:00 python reranker_inferen
 
 cd ../../scripts/
  
-srun -p gpu --gres=gpu:1 --mem=120G -c12 --time=99:00:00 python sample_ann_negatives.py \
+ python sample_ann_negatives.py \
   --rankings ${RESULTS_DIR}/reranked_with_miniLM.txt  \
   --dataset ${DATA_DIR}/msmarco/train \
   --hf_corpus Tevatron/msmarco-passage-corpus \
@@ -211,7 +211,7 @@ srun -p gpu --gres=gpu:1 --mem=120G -c12 --time=99:00:00 python sample_ann_negat
   --shards 10000 \
   --output ${DATA_DIR}/msmarco-train-MiniLM-reranked/
  
-srun -p gpu --gres=gpu:1 --mem=120G -c12 --time=99:00:00 python sample_ann_negatives.py \
+ python sample_ann_negatives.py \
   --rankings /scratch-shared/sbhargav/mvrl_code_release_exp/tasb_b_zeroshot/runs/train_msmarco-passage-parts-rerankedMiniLM/'*.txt'  \
   --dataset ${DATA_DIR}/msmarco/train-med \
   --hf_corpus Tevatron/msmarco-passage-corpus \
@@ -1047,7 +1047,7 @@ CUDA_VISIBLE_DEVICES=0 python -m tevatron.driver.train_DRD \
 
 ```
 
-srun -p gpu --gres=gpu:1 --mem=120G -c12 --time=99:00:00  python reranker_inference.py \
+  python reranker_inference.py \
   --output_dir=temp \
   --model_name_or_path cross-encoder/ms-marco-MiniLM-L-6-v2 \
   --tokenizer_name cross-encoder/ms-marco-MiniLM-L-6-v2 \
